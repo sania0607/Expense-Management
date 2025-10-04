@@ -154,3 +154,10 @@ logs/
 # Temporary files
 *.tmp
 *.temp
+
+# Project-specific temporary files
+create_*.py
+fix_*.py
+quick_setup.py
+test_*.py
+setup_*.py
