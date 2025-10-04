@@ -619,3 +619,266 @@ def test_email_configuration():
         'success': success,
         'message': message
     })
+
+# Employee Expense Management APIs
+@api_bp.route('/expenses', methods=['GET', 'POST'])
+def manage_expenses():
+    """Get user's expenses or create new expense"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = User.query.get(session['user_id'])
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    if request.method == 'GET':
+        # Get user's expenses
+        expenses = Expense.query.filter_by(user_id=user.id).order_by(Expense.created_at.desc()).all()
+        
+        expense_data = []
+        for expense in expenses:
+            expense_data.append({
+                'id': expense.id,
+                'category': expense.category,
+                'description': expense.description,
+                'amount_spent': float(expense.amount_spent),
+                'currency_spent': expense.currency_spent,
+                'final_amount_base_currency': float(expense.final_amount_base_currency),
+                'date': expense.date.isoformat(),
+                'status': expense.status,
+                'receipt_url': expense.receipt_url,
+                'created_at': expense.created_at.isoformat() if expense.created_at else None,
+                'comments': expense.comments
+            })
+        
+        return jsonify(expense_data)
+    
+    elif request.method == 'POST':
+        # Create new expense
+        try:
+            if request.is_json:
+                data = request.get_json()
+            else:
+                # Handle form data (with potential file upload)
+                data = request.form.to_dict()
+            
+            # Validate required fields
+            required_fields = ['category', 'description', 'amount_spent', 'currency_spent', 'date']
+            for field in required_fields:
+                if not data.get(field):
+                    return jsonify({'error': f'Missing required field: {field}'}), 400
+            
+            # Get exchange rate if currency is different from base currency
+            exchange_rate = 1.0
+            base_currency = user.company.base_currency_code
+            spent_currency = data['currency_spent']
+            
+            if spent_currency != base_currency:
+                try:
+                    # Use the exchange rate API
+                    rate_response = requests.get(f'https://api.exchangerate-api.com/v4/latest/{spent_currency}')
+                    if rate_response.status_code == 200:
+                        rates = rate_response.json()['rates']
+                        exchange_rate = rates.get(base_currency, 1.0)
+                except:
+                    # Fallback to 1.0 if API fails
+                    exchange_rate = 1.0
+            
+            # Calculate final amount in base currency
+            amount_spent = float(data['amount_spent'])
+            final_amount = amount_spent * exchange_rate
+            
+            # Create expense
+            expense = Expense(
+                user_id=user.id,
+                category=data['category'],
+                description=data['description'],
+                amount_spent=amount_spent,
+                currency_spent=spent_currency,
+                final_amount_base_currency=final_amount,
+                date=data['date'],
+                status=data.get('status', 'Draft')
+            )
+            
+            db.session.add(expense)
+            db.session.commit()
+            
+            # Handle receipt upload if provided
+            if 'receipt' in request.files:
+                receipt_file = request.files['receipt']
+                if receipt_file and receipt_file.filename:
+                    # Simple file handling - in production, use proper file storage
+                    filename = f"receipt_{expense.id}_{receipt_file.filename}"
+                    receipt_path = f"/static/receipts/{filename}"
+                    # Note: In production, save to proper file storage
+                    expense.receipt_url = receipt_path
+                    db.session.commit()
+            
+            return jsonify({
+                'message': 'Expense created successfully',
+                'id': expense.id,
+                'status': expense.status
+            }), 201
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to create expense: {str(e)}'}), 500
+
+@api_bp.route('/expenses/<int:expense_id>', methods=['GET', 'PUT', 'DELETE'])
+def manage_single_expense(expense_id):
+    """Get, update, or delete a specific expense"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = User.query.get(session['user_id'])
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Check if user owns this expense or is admin
+    if expense.user_id != user.id and user.role != 'Admin':
+        return jsonify({'error': 'Access denied'}), 403
+    
+    if request.method == 'GET':
+        # Get latest approval for this expense
+        latest_approval = ExpenseApproval.query.filter_by(expense_id=expense.id).order_by(ExpenseApproval.created_at.desc()).first()
+        
+        return jsonify({
+            'id': expense.id,
+            'category': expense.category,
+            'description': expense.description,
+            'amount_spent': float(expense.amount_spent),
+            'currency_spent': expense.currency_spent,
+            'final_amount_base_currency': float(expense.final_amount_base_currency),
+            'date': expense.date.isoformat(),
+            'status': expense.status,
+            'receipt_url': expense.receipt_url,
+            'created_at': expense.created_at.isoformat() if expense.created_at else None,
+            'comments': latest_approval.comments if latest_approval else None,
+            'approver_name': latest_approval.approver.name if latest_approval else None,
+            'approved_at': latest_approval.created_at.isoformat() if latest_approval else None
+        })
+    
+    elif request.method == 'PUT':
+        # Update expense (only if draft)
+        if expense.status != 'Draft':
+            return jsonify({'error': 'Can only edit draft expenses'}), 400
+        
+        try:
+            data = request.get_json()
+            
+            # Update fields
+            if 'category' in data:
+                expense.category = data['category']
+            if 'description' in data:
+                expense.description = data['description']
+            if 'amount_spent' in data:
+                expense.amount_spent = float(data['amount_spent'])
+            if 'date' in data:
+                expense.date = data['date']
+            
+            # Recalculate exchange rate if needed
+            if 'currency_spent' in data or 'amount_spent' in data:
+                base_currency = user.company.base_currency_code
+                spent_currency = data.get('currency_spent', expense.currency_spent)
+                
+                exchange_rate = 1.0
+                if spent_currency != base_currency:
+                    try:
+                        rate_response = requests.get(f'https://api.exchangerate-api.com/v4/latest/{spent_currency}')
+                        if rate_response.status_code == 200:
+                            rates = rate_response.json()['rates']
+                            exchange_rate = rates.get(base_currency, 1.0)
+                    except:
+                        exchange_rate = 1.0
+                
+                expense.currency_spent = spent_currency
+                expense.final_amount_base_currency = expense.amount_spent * exchange_rate
+            
+            db.session.commit()
+            
+            return jsonify({'message': 'Expense updated successfully'})
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to update expense: {str(e)}'}), 500
+    
+    elif request.method == 'DELETE':
+        # Delete expense (only if draft)
+        if expense.status != 'Draft':
+            return jsonify({'error': 'Can only delete draft expenses'}), 400
+        
+        try:
+            db.session.delete(expense)
+            db.session.commit()
+            
+            return jsonify({'message': 'Expense deleted successfully'})
+            
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Failed to delete expense: {str(e)}'}), 500
+
+@api_bp.route('/expenses/<int:expense_id>/submit', methods=['POST'])
+def submit_expense(expense_id):
+    """Submit expense for approval"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = User.query.get(session['user_id'])
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Check if user owns this expense
+    if expense.user_id != user.id:
+        return jsonify({'error': 'Access denied'}), 403
+    
+    # Check if expense is in draft status
+    if expense.status != 'Draft':
+        return jsonify({'error': 'Can only submit draft expenses'}), 400
+    
+    try:
+        # Update status to submitted
+        expense.status = 'Submitted'
+        db.session.commit()
+        
+        return jsonify({'message': 'Expense submitted for approval'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to submit expense: {str(e)}'}), 500
+
+@api_bp.route('/expenses/<int:expense_id>/approve', methods=['POST'])
+def approve_expense(expense_id):
+    """Approve or reject expense (for managers)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user = User.query.get(session['user_id'])
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Check if user is manager or admin
+    if user.role not in ['Manager', 'Admin']:
+        return jsonify({'error': 'Insufficient permissions'}), 403
+    
+    try:
+        data = request.get_json()
+        action = data.get('action')  # 'Approved' or 'Rejected'
+        comments = data.get('comments', '')
+        
+        if action not in ['Approved', 'Rejected']:
+            return jsonify({'error': 'Invalid action'}), 400
+        
+        # Update expense
+        expense.status = action
+        # Create approval record
+        approval = ExpenseApproval(
+            expense_id=expense.id,
+            approver_user_id=user.id,
+            action=action,
+            comments=comments
+        )
+        db.session.add(approval)
+        db.session.commit()
+        
+        return jsonify({'message': f'Expense {action.lower()} successfully'})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to process approval: {str(e)}'}), 500

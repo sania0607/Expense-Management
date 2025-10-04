@@ -181,9 +181,9 @@ def dashboard():
     if user.role == 'Admin':
         return redirect(url_for('admin_dashboard'))
     
-    # Show regular dashboard for Employees and Managers
-    expenses = Expense.query.filter_by(user_id=session['user_id']).all()
-    return render_template('dashboard.html', user=user, expenses=expenses)
+    # Show employee dashboard for Employees and Managers
+    expenses = Expense.query.filter_by(user_id=session['user_id']).order_by(Expense.created_at.desc()).all()
+    return render_template('employee_dashboard.html', user=user, expenses=expenses)
 
 @app.route('/debug-session')
 def debug_session():

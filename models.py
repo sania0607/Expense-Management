@@ -33,7 +33,7 @@ class User(db.Model):
     manager = relationship('User', remote_side=[id], backref='subordinates')
     expenses = relationship('Expense', backref='user', lazy=True)
     rule_steps = relationship('RuleStep', backref='user', lazy=True)
-    approvals = relationship('ExpenseApproval', backref='approver', lazy=True)
+    my_approvals = relationship('ExpenseApproval', foreign_keys='ExpenseApproval.approver_user_id', backref='approver_user', lazy=True)
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -96,13 +96,15 @@ class ExpenseApproval(db.Model):
     id = Column(Integer, primary_key=True)
     expense_id = Column(Integer, ForeignKey('expenses.id'), nullable=False)
     approver_user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    status = Column(String(50), nullable=False, default='Pending')  # Pending, Approved, Rejected
+    action = Column(String(50), nullable=False)  # 'Approved', 'Rejected'
     comments = Column(Text, nullable=True)
-    approval_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
+    # Relationships
+    approver = relationship('User', foreign_keys=[approver_user_id])
+    
     def __repr__(self):
-        return f'<ExpenseApproval {self.id}: {self.status}>'
+        return f'<ExpenseApproval {self.id}: {self.action}>'
 
 # Create database tables
 def create_tables():

@@ -1,0 +1,1341 @@
+{% extends "base.html" %}
+
+{% block title %}Employee Dashboard - Expense Management{% endblock %}
+
+{% block content %}
+<!-- Navigation Bar -->
+<div class="user-nav bg-primary text-white py-2">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <small>
+                    <i class="fa fa-user"></i> Welcome back, {{ user.name }}!
+                    <span class="badge badge-light text-dark ml-1">{{ user.role }}</span>
+                </small>
+            </div>
+            <div class="col-md-6 text-right">
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">
+                    <i class="fa fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Dashboard Header -->
+<div class="employee-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-0">
+                    <i class="fa fa-tachometer-alt"></i> Employee Dashboard
+                </h2>
+                <p class="text-muted mb-0">Manage your expenses and track approval status</p>
+            </div>
+            <div class="col-md-4 text-right">
+                <div class="dashboard-actions">
+                    <button class="btn btn-success" onclick="showAddExpenseModal()">
+                        <i class="fa fa-plus"></i> Submit New Expense
+                    </button>
+                    <button class="btn btn-info" onclick="showExpenseUploadModal()">
+                        <i class="fa fa-upload"></i> Upload Receipt
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid employee-content">
+    <!-- Quick Stats Cards -->
+    <div class="row stats-cards mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-primary">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-receipt"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number">{{ expenses|length }}</h3>
+                            <span class="stat-label">Total Expenses</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-success">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-check-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number">{{ expenses|selectattr("status", "equalto", "Approved")|list|length }}</h3>
+                            <span class="stat-label">Approved</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-warning">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-clock"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number">{{ expenses|selectattr("status", "equalto", "Submitted")|list|length }}</h3>
+                            <span class="stat-label">Awaiting Approval</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-info">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-edit"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number">{{ expenses|selectattr("status", "equalto", "Draft")|list|length }}</h3>
+                            <span class="stat-label">Draft</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Workflow Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card workflow-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fa fa-route"></i> Expense Workflow
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="workflow-steps">
+                        <div class="workflow-step active">
+                            <div class="step-icon">
+                                <i class="fa fa-plus-circle"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>1. Create Expense</h6>
+                                <p>Add expense details and upload receipt</p>
+                                <button class="btn btn-sm btn-primary" onclick="showAddExpenseModal()">
+                                    <i class="fa fa-plus"></i> Create New
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="step-arrow">
+                            <i class="fa fa-arrow-right"></i>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-icon">
+                                <i class="fa fa-paper-plane"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>2. Submit for Approval</h6>
+                                <p>Send expense to your manager</p>
+                                <small class="text-muted">{{ expenses|selectattr("status", "equalto", "Draft")|list|length }} draft expenses ready</small>
+                            </div>
+                        </div>
+                        
+                        <div class="step-arrow">
+                            <i class="fa fa-arrow-right"></i>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-icon">
+                                <i class="fa fa-user-check"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>3. Manager Approval</h6>
+                                <p>Waiting for manager review</p>
+                                <small class="text-muted">{{ expenses|selectattr("status", "equalto", "Submitted")|list|length }} pending approval</small>
+                            </div>
+                        </div>
+                        
+                        <div class="step-arrow">
+                            <i class="fa fa-arrow-right"></i>
+                        </div>
+                        
+                        <div class="workflow-step">
+                            <div class="step-icon">
+                                <i class="fa fa-check-circle"></i>
+                            </div>
+                            <div class="step-content">
+                                <h6>4. Approved</h6>
+                                <p>Ready for reimbursement</p>
+                                <small class="text-muted">{{ expenses|selectattr("status", "equalto", "Approved")|list|length }} approved expenses</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Expenses Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card expense-table-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fa fa-list"></i> My Expenses
+                    </h5>
+                    <div class="card-tools">
+                        <div class="input-group input-group-sm" style="width: 200px;">
+                            <input type="text" class="form-control" placeholder="Search expenses..." id="expenseSearch">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button">
+                                    <i class="fa fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover expenses-table" id="expensesTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Receipt</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for expense in expenses %}
+                                <tr data-expense-id="{{ expense.id }}">
+                                    <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        <span class="category-badge">{{ expense.category }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="expense-description" title="{{ expense.description }}">
+                                            {{ expense.description[:40] }}{% if expense.description|length > 40 %}...{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="amount-info">
+                                            <strong>{{ "%.2f"|format(expense.final_amount_base_currency|float) }} {{ user.company.base_currency_code }}</strong>
+                                            {% if expense.currency_spent != user.company.base_currency_code %}
+                                            <br><small class="text-muted">
+                                                ({{ "%.2f"|format(expense.amount_spent|float) }} {{ expense.currency_spent }})
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-{{ expense.status.lower() }}">
+                                            {{ expense.status }}
+                                        </span>
+                                        {% if expense.status == 'Submitted' %}
+                                        <br><small class="text-muted">
+                                            <i class="fa fa-clock"></i> Submitted {{ expense.created_at.strftime('%m/%d') }}
+                                        </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if expense.receipt_url %}
+                                        <button class="btn btn-sm btn-outline-info" onclick="viewReceipt('{{ expense.receipt_url }}')">
+                                            <i class="fa fa-file-image"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="uploadReceipt({{ expense.id }})">
+                                            <i class="fa fa-upload"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            {% if expense.status == 'Draft' %}
+                                            <button class="btn btn-sm btn-success" onclick="submitExpense({{ expense.id }})" title="Submit for Approval">
+                                                <i class="fa fa-paper-plane"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-primary" onclick="editExpense({{ expense.id }})" title="Edit Expense">
+                                                <i class="fa fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="deleteExpense({{ expense.id }})" title="Delete Expense">
+                                                <i class="fa fa-trash"></i>
+                                            </button>
+                                            {% else %}
+                                            <button class="btn btn-sm btn-info" onclick="viewExpenseDetails({{ expense.id }})" title="View Details">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                            {% if expense.status == 'Approved' %}
+                                            <button class="btn btn-sm btn-warning" onclick="downloadExpenseReport({{ expense.id }})" title="Download Report">
+                                                <i class="fa fa-download"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="empty-state">
+                                            <i class="fa fa-receipt fa-3x text-muted mb-3"></i>
+                                            <h5>No expenses yet</h5>
+                                            <p>Start by creating your first expense report</p>
+                                            <button class="btn btn-primary" onclick="showAddExpenseModal()">
+                                                <i class="fa fa-plus"></i> Create First Expense
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fa fa-history"></i> Recent Activity
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="activity-timeline">
+                        {% for expense in expenses[:5] %}
+                        <div class="activity-item">
+                            <div class="activity-icon status-{{ expense.status.lower() }}">
+                                {% if expense.status == 'Approved' %}
+                                <i class="fa fa-check"></i>
+                                {% elif expense.status == 'Submitted' %}
+                                <i class="fa fa-clock"></i>
+                                {% elif expense.status == 'Rejected' %}
+                                <i class="fa fa-times"></i>
+                                {% else %}
+                                <i class="fa fa-edit"></i>
+                                {% endif %}
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">{{ expense.category }} expense {{ expense.status.lower() }}</div>
+                                <div class="activity-description">{{ expense.description[:50] }}...</div>
+                                <div class="activity-time">{{ expense.created_at.strftime('%B %d, %Y') }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fa fa-chart-pie"></i> Expense Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="expenseChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-plus-circle"></i> Submit New Expense
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addExpenseForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-tags"></i> Category *</label>
+                                <select class="form-control" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Meals & Entertainment">Meals & Entertainment</option>
+                                    <option value="Office Supplies">Office Supplies</option>
+                                    <option value="Equipment">Equipment</option>
+                                    <option value="Software & Subscriptions">Software & Subscriptions</option>
+                                    <option value="Training & Development">Training & Development</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Utilities">Utilities</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-calendar"></i> Date *</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fa fa-align-left"></i> Description *</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Enter detailed description of the expense..." required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-dollar-sign"></i> Amount *</label>
+                                <input type="number" step="0.01" class="form-control" name="amount_spent" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-money-bill"></i> Currency *</label>
+                                <select class="form-control" name="currency_spent" required id="currencySelect">
+                                    <option value="{{ user.company.base_currency_code }}">{{ user.company.base_currency_code }} (Base Currency)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="conversionPreview" style="display: none;"></div>
+                    
+                    <div class="form-group">
+                        <label><i class="fa fa-file-upload"></i> Receipt (Optional)</label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="receiptFile" name="receipt" accept="image/*,.pdf">
+                            <label class="custom-file-label" for="receiptFile">Choose receipt file...</label>
+                        </div>
+                        <small class="form-text text-muted">Upload image or PDF receipt (max 5MB)</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fa fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-outline-primary" onclick="saveExpenseAsDraft()">
+                    <i class="fa fa-save"></i> Save as Draft
+                </button>
+                <button type="button" class="btn btn-success" onclick="saveAndSubmitExpense()">
+                    <i class="fa fa-paper-plane"></i> Save & Submit
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Upload Receipt Modal -->
+<div class="modal fade" id="uploadReceiptModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-upload"></i> Upload Receipt
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="receiptUploadForm">
+                    <input type="hidden" id="receiptExpenseId" name="expense_id">
+                    <div class="form-group">
+                        <label>Receipt File *</label>
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="receiptFileUpload" name="receipt_file" accept="image/*,.pdf" required>
+                            <label class="custom-file-label" for="receiptFileUpload">Choose file...</label>
+                        </div>
+                        <small class="form-text text-muted">Supported formats: JPG, PNG, PDF (max 5MB)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes (Optional)</label>
+                        <textarea class="form-control" name="notes" rows="2" placeholder="Additional notes about the receipt..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="uploadReceiptFile()">
+                    <i class="fa fa-upload"></i> Upload
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Expense Details Modal -->
+<div class="modal fade" id="expenseDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-eye"></i> Expense Details
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" id="expenseDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Employee Dashboard Specific Styles */
+.employee-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0 0 20px 20px;
+}
+
+.employee-content {
+    margin-top: -1rem;
+}
+
+/* Workflow Card */
+.workflow-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.workflow-steps {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.workflow-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    flex: 1;
+    min-width: 150px;
+    padding: 1rem;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.workflow-step.active {
+    background: rgba(102, 126, 234, 0.1);
+    border: 2px solid #667eea;
+}
+
+.workflow-step:hover {
+    background: rgba(102, 126, 234, 0.05);
+    transform: translateY(-2px);
+}
+
+.step-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.workflow-step.active .step-icon {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+    50% { box-shadow: 0 4px 25px rgba(102, 126, 234, 0.6); }
+    100% { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+}
+
+.step-content h6 {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.step-content p {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.step-arrow {
+    color: #667eea;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+/* Stats Cards */
+.stats-cards {
+    margin-top: -50px;
+    position: relative;
+    z-index: 10;
+}
+
+.stat-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.stat-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-success {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-warning {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.stat-info {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #333;
+}
+
+.stat-content {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    margin-right: 1rem;
+    opacity: 0.8;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+/* Expense Table */
+.expense-table-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.expenses-table {
+    margin: 0;
+}
+
+.expenses-table th {
+    background: #f8f9fa;
+    border: none;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+}
+
+.expenses-table td {
+    border: none;
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.category-badge {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.expense-description {
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.amount-info {
+    text-align: right;
+}
+
+.status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-submitted {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-draft {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+/* Activity Timeline */
+.activity-timeline {
+    position: relative;
+}
+
+.activity-item {
+    display: flex;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.9rem;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.activity-icon.status-approved {
+    background: #28a745;
+}
+
+.activity-icon.status-submitted {
+    background: #ffc107;
+}
+
+.activity-icon.status-rejected {
+    background: #dc3545;
+}
+
+.activity-icon.status-draft {
+    background: #6c757d;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.activity-description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.activity-time {
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+/* Form Styles */
+.form-group label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.custom-file-label {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.custom-file-input:focus ~ .custom-file-label {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Modal Styles */
+.modal-content {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0;
+    padding: 1.5rem 2rem;
+}
+
+.modal-header .modal-title {
+    font-weight: 600;
+}
+
+.modal-header .close {
+    color: white;
+    opacity: 0.8;
+    font-size: 1.5rem;
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .employee-header {
+        text-align: center;
+        padding: 1.5rem 0;
+    }
+    
+    .dashboard-actions {
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .dashboard-actions .btn {
+        margin: 0.25rem;
+        width: 100%;
+    }
+    
+    .workflow-steps {
+        flex-direction: column;
+    }
+    
+    .step-arrow {
+        transform: rotate(90deg);
+        margin: 0.5rem 0;
+    }
+    
+    .stat-content {
+        text-align: center;
+        flex-direction: column;
+    }
+    
+    .stat-icon {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .action-buttons .btn {
+        margin-bottom: 0.25rem;
+        width: 100%;
+    }
+    
+    .activity-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .activity-icon {
+        margin: 0 auto 0.5rem auto;
+    }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease;
+}
+
+.card:nth-child(2) { animation-delay: 0.1s; }
+.card:nth-child(3) { animation-delay: 0.2s; }
+.card:nth-child(4) { animation-delay: 0.3s; }
+</style>
+
+<script>
+// Employee Dashboard JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date to today
+    const dateInput = document.querySelector('input[name="date"]');
+    if (dateInput) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+    
+    // Initialize search functionality
+    initializeExpenseSearch();
+    
+    // Load expense chart
+    loadExpenseChart();
+    
+    // Initialize file input labels
+    initializeFileInputs();
+});
+
+// Initialize expense search
+function initializeExpenseSearch() {
+    const searchInput = document.getElementById('expenseSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            filterExpenseTable(this.value);
+        });
+    }
+}
+
+// Filter expense table
+function filterExpenseTable(searchTerm) {
+    const table = document.getElementById('expensesTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const text = row.textContent.toLowerCase();
+        
+        if (text.includes(searchTerm.toLowerCase())) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    }
+}
+
+// Show Add Expense Modal
+function showAddExpenseModal() {
+    $('#addExpenseModal').modal('show');
+    loadCurrencies();
+}
+
+// Load currencies from API
+function loadCurrencies() {
+    fetch('/api/currencies')
+    .then(response => response.json())
+    .then(currencies => {
+        const select = document.getElementById('currencySelect');
+        const baseCurrency = '{{ user.company.base_currency_code }}';
+        
+        // Clear existing options except base currency
+        const baseOption = select.querySelector(`option[value="${baseCurrency}"]`);
+        select.innerHTML = '';
+        select.appendChild(baseOption);
+        
+        // Add all currencies
+        currencies.forEach(currency => {
+            if (currency.code !== baseCurrency) {
+                const option = document.createElement('option');
+                option.value = currency.code;
+                option.textContent = `${currency.code} - ${currency.name}`;
+                select.appendChild(option);
+            }
+        });
+        
+        // Add event listeners for real-time conversion
+        setupConversionListeners();
+    })
+    .catch(error => {
+        console.error('Error loading currencies:', error);
+    });
+}
+
+// Setup conversion listeners
+function setupConversionListeners() {
+    const amountInput = document.querySelector('input[name="amount_spent"]');
+    const currencySelect = document.querySelector('select[name="currency_spent"]');
+    
+    if (amountInput && currencySelect) {
+        amountInput.addEventListener('input', updateConversionPreview);
+        currencySelect.addEventListener('change', updateConversionPreview);
+    }
+}
+
+// Real-time currency conversion preview
+function updateConversionPreview() {
+    const amount = document.querySelector('input[name="amount_spent"]').value;
+    const fromCurrency = document.querySelector('select[name="currency_spent"]').value;
+    const baseCurrency = '{{ user.company.base_currency_code }}';
+    
+    if (amount && fromCurrency && fromCurrency !== baseCurrency) {
+        fetch(`/api/exchange-rate?from=${fromCurrency}&to=${baseCurrency}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.rate) {
+                const convertedAmount = (parseFloat(amount) * data.rate).toFixed(2);
+                showConversionPreview(amount, fromCurrency, convertedAmount, baseCurrency, data.rate);
+            }
+        })
+        .catch(error => {
+            console.error('Error getting exchange rate:', error);
+        });
+    } else {
+        hideConversionPreview();
+    }
+}
+
+function showConversionPreview(originalAmount, fromCurrency, convertedAmount, toCurrency, rate) {
+    const previewDiv = document.getElementById('conversionPreview');
+    previewDiv.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fa fa-exchange-alt"></i>
+            <strong>Conversion Preview:</strong><br>
+            ${originalAmount} ${fromCurrency} = ${convertedAmount} ${toCurrency}<br>
+            <small class="text-muted">Exchange Rate: 1 ${fromCurrency} = ${rate.toFixed(4)} ${toCurrency}</small>
+        </div>
+    `;
+    previewDiv.style.display = 'block';
+}
+
+function hideConversionPreview() {
+    const previewDiv = document.getElementById('conversionPreview');
+    if (previewDiv) {
+        previewDiv.style.display = 'none';
+    }
+}
+
+// Save expense as draft
+function saveExpenseAsDraft() {
+    saveExpense('Draft');
+}
+
+// Save and submit expense
+function saveAndSubmitExpense() {
+    saveExpense('Submitted');
+}
+
+// Save expense with status
+function saveExpense(status = 'Draft') {
+    const form = document.getElementById('addExpenseForm');
+    const formData = new FormData(form);
+    
+    // Add status to form data
+    formData.append('status', status);
+    
+    fetch('/api/expenses', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            const message = status === 'Draft' ? 'Expense saved as draft!' : 'Expense submitted for approval!';
+            showToast(message, 'success');
+            $('#addExpenseModal').modal('hide');
+            setTimeout(() => location.reload(), 1500);
+        }
+    })
+    .catch(error => {
+        showToast('Error saving expense: ' + error, 'error');
+    });
+}
+
+// Submit expense for approval
+function submitExpense(expenseId) {
+    if (confirm('Submit this expense for approval? You won\'t be able to edit it afterwards.')) {
+        fetch(`/api/expenses/${expenseId}/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showToast('Error: ' + data.error, 'error');
+            } else {
+                showToast('Expense submitted for approval!', 'success');
+                setTimeout(() => location.reload(), 1500);
+            }
+        });
+    }
+}
+
+// Edit expense
+function editExpense(expenseId) {
+    // Load expense data and show edit modal
+    fetch(`/api/expenses/${expenseId}`)
+    .then(response => response.json())
+    .then(expense => {
+        // Populate edit form with expense data
+        populateEditForm(expense);
+        $('#editExpenseModal').modal('show');
+    })
+    .catch(error => {
+        showToast('Error loading expense: ' + error, 'error');
+    });
+}
+
+// Delete expense
+function deleteExpense(expenseId) {
+    if (confirm('Are you sure you want to delete this expense? This action cannot be undone.')) {
+        fetch(`/api/expenses/${expenseId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showToast('Error: ' + data.error, 'error');
+            } else {
+                showToast('Expense deleted successfully!', 'success');
+                setTimeout(() => location.reload(), 1500);
+            }
+        });
+    }
+}
+
+// View expense details
+function viewExpenseDetails(expenseId) {
+    fetch(`/api/expenses/${expenseId}`)
+    .then(response => response.json())
+    .then(expense => {
+        displayExpenseDetails(expense);
+        $('#expenseDetailsModal').modal('show');
+    })
+    .catch(error => {
+        showToast('Error loading expense details: ' + error, 'error');
+    });
+}
+
+// Display expense details in modal
+function displayExpenseDetails(expense) {
+    const content = document.getElementById('expenseDetailsContent');
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Expense Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Category:</strong></td><td><span class="category-badge">${expense.category}</span></td></tr>
+                    <tr><td><strong>Date:</strong></td><td>${new Date(expense.date).toLocaleDateString()}</td></tr>
+                    <tr><td><strong>Amount:</strong></td><td><strong>${expense.final_amount_base_currency} {{ user.company.base_currency_code }}</strong></td></tr>
+                    <tr><td><strong>Status:</strong></td><td><span class="status-badge status-${expense.status.toLowerCase()}">${expense.status}</span></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Approval Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Submitted:</strong></td><td>${expense.created_at ? new Date(expense.created_at).toLocaleDateString() : 'Not yet'}</td></tr>
+                    <tr><td><strong>Approver:</strong></td><td>${expense.approver_name || 'Pending'}</td></tr>
+                    <tr><td><strong>Approved Date:</strong></td><td>${expense.approved_at ? new Date(expense.approved_at).toLocaleDateString() : 'Pending'}</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Description</h6>
+                <p>${expense.description}</p>
+                ${expense.comments ? `<h6>Comments</h6><p>${expense.comments}</p>` : ''}
+            </div>
+        </div>
+        ${expense.receipt_url ? `
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Receipt</h6>
+                <img src="${expense.receipt_url}" class="img-fluid" alt="Receipt" style="max-height: 300px;">
+            </div>
+        </div>` : ''}
+    `;
+}
+
+// Upload receipt
+function uploadReceipt(expenseId) {
+    document.getElementById('receiptExpenseId').value = expenseId;
+    $('#uploadReceiptModal').modal('show');
+}
+
+// Upload receipt file
+function uploadReceiptFile() {
+    const form = document.getElementById('receiptUploadForm');
+    const formData = new FormData(form);
+    
+    fetch('/api/expenses/upload-receipt', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            showToast('Receipt uploaded successfully!', 'success');
+            $('#uploadReceiptModal').modal('hide');
+            setTimeout(() => location.reload(), 1500);
+        }
+    })
+    .catch(error => {
+        showToast('Error uploading receipt: ' + error, 'error');
+    });
+}
+
+// View receipt
+function viewReceipt(receiptUrl) {
+    window.open(receiptUrl, '_blank');
+}
+
+// Download expense report
+function downloadExpenseReport(expenseId) {
+    window.open(`/api/expenses/${expenseId}/report`, '_blank');
+}
+
+// Load expense chart
+function loadExpenseChart() {
+    const ctx = document.getElementById('expenseChart');
+    if (ctx) {
+        // Simple chart implementation
+        // You can replace this with Chart.js or another charting library
+        ctx.style.height = '200px';
+        ctx.style.background = 'linear-gradient(45deg, #667eea, #764ba2)';
+        ctx.style.borderRadius = '10px';
+        ctx.style.display = 'flex';
+        ctx.style.alignItems = 'center';
+        ctx.style.justifyContent = 'center';
+        ctx.style.color = 'white';
+        ctx.style.fontSize = '14px';
+        ctx.innerHTML = '<p>Expense Chart<br><small>Chart implementation pending</small></p>';
+    }
+}
+
+// Initialize file inputs
+function initializeFileInputs() {
+    document.querySelectorAll('.custom-file-input').forEach(input => {
+        input.addEventListener('change', function() {
+            const fileName = this.files[0]?.name || 'Choose file...';
+            const label = this.nextElementSibling;
+            label.textContent = fileName;
+        });
+    });
+}
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    // Simple toast implementation
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'} position-fixed`;
+    toast.style.top = '20px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '9999';
+    toast.style.minWidth = '300px';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="close ml-2" onclick="this.parentElement.remove()">
+            <span>&times;</span>
+        </button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 5000);
+}
+
+// Show expense upload modal
+function showExpenseUploadModal() {
+    $('#uploadReceiptModal').modal('show');
+}
+</script>
+
+{% endblock %}
