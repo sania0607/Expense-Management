@@ -1,0 +1,1316 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard - Expense Management{% endblock %}
+
+{% block content %}
+<!-- Navigation Bar -->
+<div class="user-nav bg-primary text-white py-2">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <small>
+                    <i class="fa fa-user"></i> Welcome back, {{ user.name }}!
+                    <span class="badge badge-light text-dark ml-1">{{ user.role }}</span>
+                </small>
+            </div>
+            <div class="col-md-6 text-right">
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">
+                    <i class="fa fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manager Dashboard Header -->
+<div class="manager-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-0">
+                    <i class="fa fa-user-tie"></i> Manager's Dashboard
+                </h2>
+                <p class="text-muted mb-0">Review and manage team expense approvals</p>
+            </div>
+            <div class="col-md-4 text-right">
+                <div class="dashboard-actions">
+                    <button class="btn btn-info" onclick="refreshApprovals()">
+                        <i class="fa fa-refresh"></i> Refresh
+                    </button>
+                    <button class="btn btn-success" onclick="showBulkApprovalModal()">
+                        <i class="fa fa-check-double"></i> Bulk Actions
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid manager-content">
+    <!-- Quick Stats Cards -->
+    <div class="row stats-cards mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-warning">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-clock"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number" id="pendingCount">{{ pending_approvals|length }}</h3>
+                            <span class="stat-label">Pending Approvals</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-success">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-check-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number" id="approvedCount">{{ approved_this_month }}</h3>
+                            <span class="stat-label">Approved This Month</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-danger">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-times-circle"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number" id="rejectedCount">{{ rejected_this_month }}</h3>
+                            <span class="stat-label">Rejected This Month</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card stat-card stat-info">
+                <div class="card-body">
+                    <div class="stat-content">
+                        <div class="stat-icon">
+                            <i class="fa fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-details">
+                            <h3 class="stat-number">${{ total_amount_pending|round(2) }}</h3>
+                            <span class="stat-label">Total Pending Amount</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approvals to Review Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card approvals-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fa fa-clipboard-check"></i> Approvals to Review
+                    </h5>
+                    <div class="card-tools">
+                        <div class="row">
+                            <div class="col-auto">
+                                <select class="form-control form-control-sm" id="categoryFilter" onchange="filterApprovals()">
+                                    <option value="">All Categories</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Meals & Entertainment">Meals & Entertainment</option>
+                                    <option value="Office Supplies">Office Supplies</option>
+                                    <option value="Equipment">Equipment</option>
+                                    <option value="Software & Subscriptions">Software & Subscriptions</option>
+                                    <option value="Training & Development">Training & Development</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Utilities">Utilities</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <select class="form-control form-control-sm" id="amountFilter" onchange="filterApprovals()">
+                                    <option value="">All Amounts</option>
+                                    <option value="0-100">$0 - $100</option>
+                                    <option value="100-500">$100 - $500</option>
+                                    <option value="500-1000">$500 - $1,000</option>
+                                    <option value="1000+">$1,000+</option>
+                                </select>
+                            </div>
+                            <div class="col-auto">
+                                <div class="input-group input-group-sm">
+                                    <input type="text" class="form-control" placeholder="Search..." id="searchInput" onkeyup="filterApprovals()">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button">
+                                            <i class="fa fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover approvals-table" id="approvalsTable">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAllApprovals" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th>Approval Subject</th>
+                                    <th>Request Owner</th>
+                                    <th>Category</th>
+                                    <th>Request Status</th>
+                                    <th>Total Amount<br><small>(in company's currency)</small></th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="approvalsTableBody">
+                                {% for expense in pending_approvals %}
+                                <tr data-expense-id="{{ expense.id }}" class="approval-row">
+                                    <td>
+                                        <input type="checkbox" class="approval-checkbox" value="{{ expense.id }}">
+                                    </td>
+                                    <td>
+                                        <div class="approval-subject">
+                                            <strong>{{ expense.description[:50] }}{% if expense.description|length > 50 %}...{% endif %}</strong>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="fa fa-calendar"></i> {{ expense.date.strftime('%B %d, %Y') }}
+                                                {% if expense.receipt_url %}
+                                                <i class="fa fa-paperclip ml-2" title="Has receipt"></i>
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="request-owner">
+                                            <div class="owner-name">{{ expense.user.name }}</div>
+                                            <small class="owner-email">{{ expense.user.email }}</small>
+                                            <br>
+                                            <small class="text-muted">
+                                                <i class="fa fa-clock"></i> Submitted {{ expense.created_at.strftime('%m/%d/%Y') }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="category-badge category-{{ expense.category.replace(' ', '-').replace('&', '').lower() }}">
+                                            {{ expense.category }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-{{ expense.status.lower() }}">
+                                            <i class="fa fa-clock"></i> {{ expense.status }}
+                                        </span>
+                                        <br>
+                                        <small class="text-muted">
+                                            {% set days_pending = (expense.created_at.date() - expense.created_at.date()).days %}
+                                            0 days pending
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="amount-info">
+                                            <strong class="amount-primary">${{ "%.2f"|format(expense.final_amount_base_currency|float) }}</strong>
+                                            <small class="currency-code">{{ user.company.base_currency_code }}</small>
+                                            {% if expense.currency_spent != user.company.base_currency_code %}
+                                            <br>
+                                            <small class="original-amount text-muted">
+                                                ({{ "%.2f"|format(expense.amount_spent|float) }} {{ expense.currency_spent }})
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn btn-sm btn-success approve-btn" 
+                                                    onclick="approveExpense({{ expense.id }})" 
+                                                    title="Approve Expense">
+                                                <i class="fa fa-check"></i> Approve
+                                            </button>
+                                            <button class="btn btn-sm btn-danger reject-btn" 
+                                                    onclick="rejectExpense({{ expense.id }})" 
+                                                    title="Reject Expense">
+                                                <i class="fa fa-times"></i> Reject
+                                            </button>
+                                            <button class="btn btn-sm btn-info details-btn" 
+                                                    onclick="viewExpenseDetails({{ expense.id }})" 
+                                                    title="View Details">
+                                                <i class="fa fa-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center">
+                                        <div class="empty-state">
+                                            <i class="fa fa-check-circle fa-3x text-success mb-3"></i>
+                                            <h5>All caught up!</h5>
+                                            <p>No pending approvals at the moment. Great job staying on top of things!</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fa fa-history"></i> Recent Approval Activity
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="activity-timeline">
+                        {% for approval in recent_approvals[:5] %}
+                        <div class="activity-item">
+                            <div class="activity-icon status-{{ approval.action.lower() }}">
+                                {% if approval.action == 'Approved' %}
+                                <i class="fa fa-check"></i>
+                                {% else %}
+                                <i class="fa fa-times"></i>
+                                {% endif %}
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">{{ approval.action }} expense from {{ approval.expense.user.name }}</div>
+                                <div class="activity-description">{{ approval.expense.description[:50] }}...</div>
+                                <div class="activity-time">{{ approval.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fa fa-chart-pie"></i> Approval Summary
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="summary-stats">
+                        <div class="summary-item">
+                            <div class="summary-label">Average Approval Time</div>
+                            <div class="summary-value">2.3 days</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Approval Rate</div>
+                            <div class="summary-value">85%</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Most Common Category</div>
+                            <div class="summary-value">Travel</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Team Members</div>
+                            <div class="summary-value">{{ team_count }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approval Modal -->
+<div class="modal fade" id="approvalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-check-circle"></i> <span id="approvalModalTitle">Approve Expense</span>
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="approvalForm">
+                    <input type="hidden" id="expenseId" name="expense_id">
+                    <input type="hidden" id="approvalAction" name="action">
+                    
+                    <div class="expense-summary" id="expenseSummary">
+                        <!-- Expense details will be loaded here -->
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="approvalComments">Comments <span id="commentsRequired" style="display:none;" class="text-danger">*</span></label>
+                        <textarea class="form-control" id="approvalComments" name="comments" rows="3" 
+                                  placeholder="Add your comments about this expense..."></textarea>
+                        <small class="form-text text-muted">
+                            <span id="commentsHelp">Comments are optional for approvals but recommended for rejections.</span>
+                        </small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmApprovalBtn" onclick="confirmApproval()">
+                    <i class="fa fa-check"></i> <span id="confirmButtonText">Approve</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Approval Modal -->
+<div class="modal fade" id="bulkApprovalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-check-double"></i> Bulk Actions
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Select an action to perform on <span id="selectedCount">0</span> selected expenses:</p>
+                <div class="list-group">
+                    <button type="button" class="list-group-item list-group-item-action" onclick="bulkAction('approve')">
+                        <i class="fa fa-check-circle text-success"></i> Approve All Selected
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="bulkAction('reject')">
+                        <i class="fa fa-times-circle text-danger"></i> Reject All Selected
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="bulkAction('export')">
+                        <i class="fa fa-download text-primary"></i> Export Selected to CSV
+                    </button>
+                </div>
+                
+                <div class="form-group mt-3">
+                    <label>Bulk Action Comments</label>
+                    <textarea class="form-control" id="bulkComments" rows="2" placeholder="Add comments for bulk action..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Details Modal -->
+<div class="modal fade" id="expenseDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-eye"></i> Expense Details
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" id="expenseDetailsContent">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="quickApproveBtn" style="display:none;" onclick="quickApproveFromDetails()">
+                    <i class="fa fa-check"></i> Quick Approve
+                </button>
+                <button type="button" class="btn btn-danger" id="quickRejectBtn" style="display:none;" onclick="quickRejectFromDetails()">
+                    <i class="fa fa-times"></i> Quick Reject
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Manager Dashboard Specific Styles */
+.manager-header {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0 0 20px 20px;
+}
+
+.manager-content {
+    margin-top: -1rem;
+}
+
+/* Stats Cards */
+.stats-cards {
+    margin-top: -50px;
+    position: relative;
+    z-index: 10;
+}
+
+.stat-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.stat-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%);
+    color: white;
+}
+
+.stat-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+}
+
+.stat-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
+
+.stat-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+}
+
+.stat-content {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    margin-right: 1rem;
+    opacity: 0.8;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+/* Approvals Table */
+.approvals-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.approvals-table {
+    margin: 0;
+}
+
+.approvals-table th {
+    background: #f8f9fa;
+    border: none;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+}
+
+.approvals-table td {
+    border: none;
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.approval-subject strong {
+    color: #333;
+    font-weight: 600;
+}
+
+.request-owner .owner-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.owner-email {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.category-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.category-travel {
+    background: rgba(0, 123, 255, 0.1);
+    color: #007bff;
+}
+
+.category-meals-entertainment {
+    background: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+}
+
+.category-office-supplies {
+    background: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+.category-equipment {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.category-software-subscriptions {
+    background: rgba(102, 16, 242, 0.1);
+    color: #6610f2;
+}
+
+.category-training-development {
+    background: rgba(32, 201, 151, 0.1);
+    color: #20c997;
+}
+
+.category-marketing {
+    background: rgba(253, 126, 20, 0.1);
+    color: #fd7e14;
+}
+
+.category-utilities {
+    background: rgba(23, 162, 184, 0.1);
+    color: #17a2b8;
+}
+
+.category-other {
+    background: rgba(134, 142, 150, 0.1);
+    color: #868e96;
+}
+
+.status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-submitted {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.amount-info {
+    text-align: right;
+}
+
+.amount-primary {
+    font-size: 1.1rem;
+    color: #28a745;
+}
+
+.currency-code {
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.original-amount {
+    font-style: italic;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+    font-size: 0.8rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.approve-btn:hover {
+    background: #218838;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.reject-btn:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.details-btn:hover {
+    background: #138496;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(23, 162, 184, 0.3);
+}
+
+/* Activity Timeline */
+.activity-timeline {
+    position: relative;
+}
+
+.activity-item {
+    display: flex;
+    margin-bottom: 1rem;
+    position: relative;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.9rem;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.activity-icon.status-approved {
+    background: #28a745;
+}
+
+.activity-icon.status-rejected {
+    background: #dc3545;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.25rem;
+}
+
+.activity-description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.activity-time {
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+/* Summary Stats */
+.summary-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.summary-item {
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.summary-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.summary-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #28a745;
+}
+
+/* Empty State */
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+/* Modal Styles */
+.modal-content {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border-radius: 15px 15px 0 0;
+    padding: 1.5rem 2rem;
+}
+
+.modal-header .modal-title {
+    font-weight: 600;
+}
+
+.modal-header .close {
+    color: white;
+    opacity: 0.8;
+    font-size: 1.5rem;
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.expense-summary {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+/* Bulk Actions */
+.list-group-item-action:hover {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+}
+
+.list-group-item i {
+    width: 20px;
+    margin-right: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .manager-header {
+        text-align: center;
+        padding: 1.5rem 0;
+    }
+    
+    .dashboard-actions {
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .dashboard-actions .btn {
+        margin: 0.25rem;
+        width: 100%;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .action-buttons .btn {
+        margin-bottom: 0.25rem;
+        width: 100%;
+    }
+    
+    .summary-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .card-tools .row {
+        flex-direction: column;
+    }
+    
+    .card-tools .col-auto {
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease;
+}
+
+.card:nth-child(2) { animation-delay: 0.1s; }
+.card:nth-child(3) { animation-delay: 0.2s; }
+.card:nth-child(4) { animation-delay: 0.3s; }
+
+/* Row highlighting */
+.approval-row:hover {
+    background-color: rgba(40, 167, 69, 0.05);
+}
+
+.approval-row.selected {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+</style>
+
+<script>
+// Manager Dashboard JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize functionality
+    updateSelectedCount();
+    
+    // Auto-refresh pending approvals every 30 seconds
+    setInterval(refreshApprovals, 30000);
+});
+
+// Refresh approvals data
+function refreshApprovals() {
+    location.reload();
+}
+
+// Filter approvals table
+function filterApprovals() {
+    const category = document.getElementById('categoryFilter').value;
+    const amount = document.getElementById('amountFilter').value;
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    
+    const rows = document.querySelectorAll('.approval-row');
+    
+    rows.forEach(row => {
+        let show = true;
+        
+        // Category filter
+        if (category) {
+            const rowCategory = row.querySelector('.category-badge').textContent.trim();
+            if (rowCategory !== category) show = false;
+        }
+        
+        // Amount filter
+        if (amount && show) {
+            const amountText = row.querySelector('.amount-primary').textContent.replace('$', '').replace(',', '');
+            const rowAmount = parseFloat(amountText);
+            
+            switch(amount) {
+                case '0-100':
+                    if (rowAmount > 100) show = false;
+                    break;
+                case '100-500':
+                    if (rowAmount < 100 || rowAmount > 500) show = false;
+                    break;
+                case '500-1000':
+                    if (rowAmount < 500 || rowAmount > 1000) show = false;
+                    break;
+                case '1000+':
+                    if (rowAmount < 1000) show = false;
+                    break;
+            }
+        }
+        
+        // Search filter
+        if (search && show) {
+            const text = row.textContent.toLowerCase();
+            if (!text.includes(search)) show = false;
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Approve expense
+function approveExpense(expenseId) {
+    showApprovalModal(expenseId, 'Approved');
+}
+
+// Reject expense
+function rejectExpense(expenseId) {
+    showApprovalModal(expenseId, 'Rejected');
+}
+
+// Show approval modal
+function showApprovalModal(expenseId, action) {
+    // Load expense details
+    fetch(`/api/expenses/${expenseId}`)
+    .then(response => response.json())
+    .then(expense => {
+        document.getElementById('expenseId').value = expenseId;
+        document.getElementById('approvalAction').value = action;
+        
+        // Update modal title and styling
+        const modal = document.getElementById('approvalModal');
+        const title = document.getElementById('approvalModalTitle');
+        const confirmBtn = document.getElementById('confirmApprovalBtn');
+        const confirmText = document.getElementById('confirmButtonText');
+        const commentsRequired = document.getElementById('commentsRequired');
+        const commentsHelp = document.getElementById('commentsHelp');
+        
+        if (action === 'Approved') {
+            title.innerHTML = '<i class="fa fa-check-circle"></i> Approve Expense';
+            confirmBtn.className = 'btn btn-success';
+            confirmText.textContent = 'Approve';
+            commentsRequired.style.display = 'none';
+            commentsHelp.textContent = 'Comments are optional for approvals.';
+        } else {
+            title.innerHTML = '<i class="fa fa-times-circle"></i> Reject Expense';
+            confirmBtn.className = 'btn btn-danger';
+            confirmText.textContent = 'Reject';
+            commentsRequired.style.display = 'inline';
+            commentsHelp.textContent = 'Comments are required when rejecting an expense.';
+        }
+        
+        // Populate expense summary
+        document.getElementById('expenseSummary').innerHTML = `
+            <h6>Expense Summary</h6>
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Description:</strong><br>
+                    ${expense.description}
+                </div>
+                <div class="col-md-6">
+                    <strong>Amount:</strong><br>
+                    $${expense.final_amount_base_currency} {{ user.company.base_currency_code }}
+                </div>
+            </div>
+            <div class="row mt-2">
+                <div class="col-md-6">
+                    <strong>Category:</strong><br>
+                    ${expense.category}
+                </div>
+                <div class="col-md-6">
+                    <strong>Date:</strong><br>
+                    ${new Date(expense.date).toLocaleDateString()}
+                </div>
+            </div>
+        `;
+        
+        // Clear previous comments
+        document.getElementById('approvalComments').value = '';
+        
+        $('#approvalModal').modal('show');
+    })
+    .catch(error => {
+        showToast('Error loading expense details: ' + error, 'error');
+    });
+}
+
+// Confirm approval/rejection
+function confirmApproval() {
+    const expenseId = document.getElementById('expenseId').value;
+    const action = document.getElementById('approvalAction').value;
+    const comments = document.getElementById('approvalComments').value;
+    
+    // Validate comments for rejection
+    if (action === 'Rejected' && !comments.trim()) {
+        showToast('Comments are required when rejecting an expense.', 'error');
+        return;
+    }
+    
+    // Send approval request
+    fetch(`/api/expenses/${expenseId}/approve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: action,
+            comments: comments
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            showToast(`Expense ${action.toLowerCase()} successfully!`, 'success');
+            $('#approvalModal').modal('hide');
+            
+            // Remove the row from table or refresh
+            const row = document.querySelector(`tr[data-expense-id="${expenseId}"]`);
+            if (row) {
+                row.remove();
+            }
+            
+            // Update counts
+            updateStatsAfterAction(action);
+        }
+    })
+    .catch(error => {
+        showToast('Error processing approval: ' + error, 'error');
+    });
+}
+
+// Update stats after approval action
+function updateStatsAfterAction(action) {
+    const pendingCount = document.getElementById('pendingCount');
+    const currentPending = parseInt(pendingCount.textContent);
+    pendingCount.textContent = Math.max(0, currentPending - 1);
+    
+    if (action === 'Approved') {
+        const approvedCount = document.getElementById('approvedCount');
+        const currentApproved = parseInt(approvedCount.textContent);
+        approvedCount.textContent = currentApproved + 1;
+    } else if (action === 'Rejected') {
+        const rejectedCount = document.getElementById('rejectedCount');
+        const currentRejected = parseInt(rejectedCount.textContent);
+        rejectedCount.textContent = currentRejected + 1;
+    }
+}
+
+// View expense details
+function viewExpenseDetails(expenseId) {
+    fetch(`/api/expenses/${expenseId}`)
+    .then(response => response.json())
+    .then(expense => {
+        displayExpenseDetails(expense);
+        $('#expenseDetailsModal').modal('show');
+    })
+    .catch(error => {
+        showToast('Error loading expense details: ' + error, 'error');
+    });
+}
+
+// Display expense details in modal
+function displayExpenseDetails(expense) {
+    const content = document.getElementById('expenseDetailsContent');
+    content.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Expense Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Category:</strong></td><td><span class="category-badge">${expense.category}</span></td></tr>
+                    <tr><td><strong>Date:</strong></td><td>${new Date(expense.date).toLocaleDateString()}</td></tr>
+                    <tr><td><strong>Amount:</strong></td><td><strong>$${expense.final_amount_base_currency} {{ user.company.base_currency_code }}</strong></td></tr>
+                    <tr><td><strong>Status:</strong></td><td><span class="status-badge status-${expense.status.toLowerCase()}">${expense.status}</span></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Submitter Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Employee:</strong></td><td>${expense.user ? expense.user.name : 'Unknown'}</td></tr>
+                    <tr><td><strong>Email:</strong></td><td>${expense.user ? expense.user.email : 'Unknown'}</td></tr>
+                    <tr><td><strong>Submitted:</strong></td><td>${expense.created_at ? new Date(expense.created_at).toLocaleDateString() : 'Unknown'}</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Description</h6>
+                <p>${expense.description}</p>
+                ${expense.comments ? `<h6>Previous Comments</h6><p>${expense.comments}</p>` : ''}
+            </div>
+        </div>
+        ${expense.receipt_url ? `
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Receipt</h6>
+                <img src="${expense.receipt_url}" class="img-fluid" alt="Receipt" style="max-height: 300px;">
+            </div>
+        </div>` : ''}
+    `;
+    
+    // Show quick action buttons if expense is still pending
+    const quickApproveBtn = document.getElementById('quickApproveBtn');
+    const quickRejectBtn = document.getElementById('quickRejectBtn');
+    
+    if (expense.status === 'Submitted') {
+        quickApproveBtn.style.display = 'inline-block';
+        quickRejectBtn.style.display = 'inline-block';
+        quickApproveBtn.onclick = () => quickApproveFromDetails(expense.id);
+        quickRejectBtn.onclick = () => quickRejectFromDetails(expense.id);
+    } else {
+        quickApproveBtn.style.display = 'none';
+        quickRejectBtn.style.display = 'none';
+    }
+}
+
+// Quick approve from details modal
+function quickApproveFromDetails(expenseId) {
+    $('#expenseDetailsModal').modal('hide');
+    setTimeout(() => approveExpense(expenseId), 500);
+}
+
+// Quick reject from details modal
+function quickRejectFromDetails(expenseId) {
+    $('#expenseDetailsModal').modal('hide');
+    setTimeout(() => rejectExpense(expenseId), 500);
+}
+
+// Toggle select all approvals
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAllApprovals');
+    const checkboxes = document.querySelectorAll('.approval-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateSelectedCount();
+}
+
+// Update selected count
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.approval-checkbox:checked');
+    const count = checkboxes.length;
+    document.getElementById('selectedCount').textContent = count;
+    
+    // Update row highlighting
+    document.querySelectorAll('.approval-row').forEach(row => {
+        const checkbox = row.querySelector('.approval-checkbox');
+        if (checkbox && checkbox.checked) {
+            row.classList.add('selected');
+        } else {
+            row.classList.remove('selected');
+        }
+    });
+}
+
+// Show bulk approval modal
+function showBulkApprovalModal() {
+    const checkedBoxes = document.querySelectorAll('.approval-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        showToast('Please select at least one expense for bulk actions.', 'warning');
+        return;
+    }
+    
+    updateSelectedCount();
+    $('#bulkApprovalModal').modal('show');
+}
+
+// Bulk action
+function bulkAction(action) {
+    const checkedBoxes = document.querySelectorAll('.approval-checkbox:checked');
+    const expenseIds = Array.from(checkedBoxes).map(cb => cb.value);
+    const comments = document.getElementById('bulkComments').value;
+    
+    if (expenseIds.length === 0) {
+        showToast('No expenses selected.', 'warning');
+        return;
+    }
+    
+    if ((action === 'approve' || action === 'reject') && !comments.trim()) {
+        showToast('Please add comments for bulk approval actions.', 'warning');
+        return;
+    }
+    
+    if (action === 'export') {
+        // Handle export
+        exportSelectedExpenses(expenseIds);
+        return;
+    }
+    
+    // Confirm bulk action
+    const actionText = action === 'approve' ? 'approve' : 'reject';
+    if (!confirm(`Are you sure you want to ${actionText} ${expenseIds.length} expenses?`)) {
+        return;
+    }
+    
+    // Process bulk approval/rejection
+    const promises = expenseIds.map(expenseId => {
+        return fetch(`/api/expenses/${expenseId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: action === 'approve' ? 'Approved' : 'Rejected',
+                comments: comments
+            })
+        });
+    });
+    
+    Promise.all(promises)
+    .then(responses => {
+        const successCount = responses.filter(r => r.ok).length;
+        showToast(`Successfully ${actionText}ed ${successCount} out of ${expenseIds.length} expenses.`, 'success');
+        $('#bulkApprovalModal').modal('hide');
+        setTimeout(() => location.reload(), 1500);
+    })
+    .catch(error => {
+        showToast('Error processing bulk action: ' + error, 'error');
+    });
+}
+
+// Export selected expenses
+function exportSelectedExpenses(expenseIds) {
+    // Simple CSV export
+    const csvContent = "data:text/csv;charset=utf-8," + 
+        "Expense ID,Description,Category,Amount,Status,Date\n" +
+        expenseIds.map(id => {
+            const row = document.querySelector(`tr[data-expense-id="${id}"]`);
+            const description = row.querySelector('.approval-subject strong').textContent;
+            const category = row.querySelector('.category-badge').textContent;
+            const amount = row.querySelector('.amount-primary').textContent;
+            const status = row.querySelector('.status-badge').textContent.trim();
+            const date = new Date().toLocaleDateString();
+            return `"${id}","${description}","${category}","${amount}","${status}","${date}"`;
+        }).join("\n");
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `selected_expenses_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    $('#bulkApprovalModal').modal('hide');
+    showToast('Expenses exported successfully!', 'success');
+}
+
+// Add event listeners for checkboxes
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('approval-checkbox')) {
+        updateSelectedCount();
+    }
+});
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info'} position-fixed`;
+    toast.style.top = '20px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '9999';
+    toast.style.minWidth = '300px';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="close ml-2" onclick="this.parentElement.remove()">
+            <span>&times;</span>
+        </button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>
+
+{% endblock %}

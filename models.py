@@ -33,7 +33,7 @@ class User(db.Model):
     manager = relationship('User', remote_side=[id], backref='subordinates')
     expenses = relationship('Expense', backref='user', lazy=True)
     rule_steps = relationship('RuleStep', backref='user', lazy=True)
-    my_approvals = relationship('ExpenseApproval', foreign_keys='ExpenseApproval.approver_user_id', backref='approver_user', lazy=True)
+    my_approvals = relationship('ExpenseApproval', foreign_keys='ExpenseApproval.approver_user_id', back_populates='approver', lazy=True)
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -54,7 +54,7 @@ class Expense(db.Model):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    approvals = relationship('ExpenseApproval', backref='expense', lazy=True, cascade='all, delete-orphan')
+    approvals = relationship('ExpenseApproval', back_populates='expense', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Expense {self.id}: {self.description}>'
@@ -98,10 +98,12 @@ class ExpenseApproval(db.Model):
     approver_user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     action = Column(String(50), nullable=False)  # 'Approved', 'Rejected'
     comments = Column(Text, nullable=True)
+    approval_date = Column(DateTime, nullable=True)  # When the action was taken
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
-    approver = relationship('User', foreign_keys=[approver_user_id])
+    approver = relationship('User', foreign_keys=[approver_user_id], back_populates='my_approvals')
+    expense = relationship('Expense', back_populates='approvals')
     
     def __repr__(self):
         return f'<ExpenseApproval {self.id}: {self.action}>'

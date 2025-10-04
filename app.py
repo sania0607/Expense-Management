@@ -180,10 +180,47 @@ def dashboard():
     # Redirect admins to their specific dashboard
     if user.role == 'Admin':
         return redirect(url_for('admin_dashboard'))
-    
-    # Show employee dashboard for Employees and Managers
-    expenses = Expense.query.filter_by(user_id=session['user_id']).order_by(Expense.created_at.desc()).all()
-    return render_template('employee_dashboard.html', user=user, expenses=expenses)
+    elif user.role == 'Manager':
+        # Manager dashboard - show pending approvals and team stats
+        from sqlalchemy import func
+        from datetime import datetime, timedelta
+        
+        # Get all pending approvals (managers can approve any expense)
+        pending_approvals = Expense.query.filter_by(status='Submitted').order_by(Expense.created_at.desc()).all()
+        
+        # Get stats for current month
+        current_month = datetime.now().replace(day=1)
+        approved_this_month = ExpenseApproval.query.filter(
+            ExpenseApproval.created_at >= current_month,
+            ExpenseApproval.action == 'Approved'
+        ).count()
+        
+        rejected_this_month = ExpenseApproval.query.filter(
+            ExpenseApproval.created_at >= current_month,
+            ExpenseApproval.action == 'Rejected'
+        ).count()
+        
+        # Calculate total pending amount
+        total_amount_pending = sum(float(exp.final_amount_base_currency or 0) for exp in pending_approvals)
+        
+        # Get recent approvals
+        recent_approvals = ExpenseApproval.query.order_by(ExpenseApproval.created_at.desc()).limit(10).all()
+        
+        # Get team count
+        team_count = User.query.filter_by(role='Employee').count()
+        
+        return render_template('manager_dashboard.html', 
+                             user=user,
+                             pending_approvals=pending_approvals,
+                             approved_this_month=approved_this_month,
+                             rejected_this_month=rejected_this_month,
+                             total_amount_pending=total_amount_pending,
+                             recent_approvals=recent_approvals,
+                             team_count=team_count)
+    else:
+        # Show employee dashboard for Employees
+        expenses = Expense.query.filter_by(user_id=session['user_id']).order_by(Expense.created_at.desc()).all()
+        return render_template('employee_dashboard.html', user=user, expenses=expenses)
 
 @app.route('/debug-session')
 def debug_session():
@@ -287,37 +324,45 @@ def approve_expense(expense_id):
         return jsonify({'error': 'Unauthorized'}), 401
     
     data = request.get_json()
-    action = data.get('action', 'Approved')  # Default to 'Approved'
+    action = data.get('action', 'Approved')  # 'Approved' or 'Rejected'
     comments = data.get('comments', '')
     
     expense = Expense.query.get_or_404(expense_id)
+    user = User.query.get(session['user_id'])
     
     # Check if user is authorized to approve this expense
+    # Managers and Admins can approve any expense
+    if user.role not in ['Manager', 'Admin']:
+        return jsonify({'error': 'Not authorized to approve expenses'}), 403
+    
+    # Find or create approval record
     approval = ExpenseApproval.query.filter_by(
         expense_id=expense_id,
-        approver_user_id=session['user_id'],
-        status='Pending'
+        approver_user_id=session['user_id']
     ).first()
     
     if not approval:
-        return jsonify({'error': 'Not authorized to approve this expense'}), 403
+        # Create new approval record
+        approval = ExpenseApproval(
+            expense_id=expense_id,
+            approver_user_id=session['user_id'],
+            action=action,
+            comments=comments,
+            approval_date=datetime.utcnow(),
+            created_at=datetime.utcnow()
+        )
+        db.session.add(approval)
+    else:
+        # Update existing approval
+        approval.action = action
+        approval.comments = comments
+        approval.approval_date = datetime.utcnow()
     
-    # Update approval status
-    approval.status = action
-    approval.comments = comments
-    approval.approval_date = datetime.utcnow()
-    
-    # Check if all required approvals are complete or if any rejection occurred
+    # Update expense status
     if action == 'Rejected':
         expense.status = 'Rejected'
     else:
-        pending_approvals = ExpenseApproval.query.filter_by(
-            expense_id=expense_id,
-            status='Pending'
-        ).count()
-        
-        if pending_approvals == 0:
-            expense.status = 'Approved'
+        expense.status = 'Approved'
     
     db.session.commit()
     
