@@ -25,6 +25,27 @@ A comprehensive expense management platform designed for modern businesses with 
 
 4. **Access:** Open `http://localhost:5000`
 
+## 🔐 **Demo Credentials**
+
+Test the application with these pre-configured user accounts:
+
+### **Admin User**
+- **Email**: `admin@company.com`
+- **Password**: `admin123`
+- **Features**: User management, company settings, system configuration
+
+### **Manager User**
+- **Email**: `manager@company.com`
+- **Password**: `password123`
+- **Features**: Expense approval dashboard, bulk actions, team analytics
+
+### **Employee User**
+- **Email**: `employee@company.com`
+- **Password**: `password123`
+- **Features**: Expense submission, receipt upload, workflow tracking
+
+> 💡 **Quick Test Flow**: Login as Employee → Create expense → Login as Manager → Approve expense → Login as Admin → Manage users
+
 ## 🌟 Key Features
 
 ### 👥 **Role-Based System**
