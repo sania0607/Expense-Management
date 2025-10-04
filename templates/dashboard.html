@@ -1,0 +1,2548 @@
+{% extends "base.html" %}
+
+{% block title %}{% if user.role == 'Admin' %}Admin {% endif %}Dashboard - Expense Management{% endblock %}
+
+{% block content %}
+<!-- Navigation Bar -->
+<div class="user-nav bg-primary text-white py-2">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <small>
+                    <i class="fa fa-user"></i> Welcome back, {{ user.name }}!
+                    <span class="badge badge-light text-dark ml-1">{{ user.role }}</span>
+                </small>
+            </div>
+            <div class="col-md-6 text-right">
+                {% if user.role == 'Admin' %}
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm btn-outline-light mr-2">
+                    <i class="fa fa-shield-alt"></i> Admin Panel
+                </a>
+                {% endif %}
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">
+                    <i class="fa fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h2 class="mb-0">
+                    {% if user.role == 'Admin' %}
+                    <i class="fa fa-shield"></i> Admin Dashboard
+                    {% else %}
+                    <i class="fa fa-tachometer-alt"></i> Dashboard
+                    {% endif %}
+                </h2>
+                <p class="text-muted mb-0">Welcome back, {{ user.name }} | {{ user.role }} | {{ user.company.name if user.company }}</p>
+            </div>
+            <div class="col-md-4 text-right">
+                <div class="dashboard-actions">
+                    <button class="btn btn-primary" onclick="showAddExpenseModal()">
+                        <i class="fa fa-plus"></i> New Expense
+                    </button>
+                    {% if user.role in ['Manager', 'Admin'] %}
+                    <button class="btn btn-warning" onclick="loadPendingApprovals()">
+                        <i class="fa fa-clock"></i> Approvals
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid dashboard-content">
+    {% if user.role == 'Admin' %}
+    <!-- Admin Tabs Navigation -->
+    <ul class="nav nav-tabs admin-tabs" id="adminTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab">
+                <i class="fa fa-chart-bar"></i> Overview
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="users-tab" data-toggle="tab" href="#users" role="tab">
+                <i class="fa fa-users"></i> User Management
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="approval-rules-tab" data-toggle="tab" href="#approval-rules" role="tab">
+                <i class="fa fa-cogs"></i> Approval Rules
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="company-settings-tab" data-toggle="tab" href="#company-settings" role="tab">
+                <i class="fa fa-building"></i> Company Settings
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="all-expenses-tab" data-toggle="tab" href="#all-expenses" role="tab">
+                <i class="fa fa-list"></i> All Expenses
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="reports-tab" data-toggle="tab" href="#reports" role="tab">
+                <i class="fa fa-chart-pie"></i> Reports
+            </a>
+        </li>
+    </ul>
+
+    <!-- Admin Tab Content -->
+    <div class="tab-content admin-content" id="adminTabContent">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            {% endif %}
+            
+            <!-- Quick Stats Cards -->
+            <div class="row stats-cards mb-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card stat-primary">
+                        <div class="card-body">
+                            <div class="stat-content">
+                                <div class="stat-icon">
+                                    <i class="fa fa-receipt"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <h3 class="stat-number">{{ expenses|length }}</h3>
+                                    <span class="stat-label">
+                                        {% if user.role == 'Admin' %}Total Expenses{% else %}My Expenses{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card stat-success">
+                        <div class="card-body">
+                            <div class="stat-content">
+                                <div class="stat-icon">
+                                    <i class="fa fa-check-circle"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <h3 class="stat-number">{{ expenses|selectattr("status", "equalto", "Approved")|list|length }}</h3>
+                                    <span class="stat-label">Approved</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card stat-warning">
+                        <div class="card-body">
+                            <div class="stat-content">
+                                <div class="stat-icon">
+                                    <i class="fa fa-clock"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <h3 class="stat-number">{{ expenses|selectattr("status", "equalto", "Submitted")|list|length }}</h3>
+                                    <span class="stat-label">Pending Approval</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-md-6">
+                    <div class="card stat-card stat-info">
+                        <div class="card-body">
+                            <div class="stat-content">
+                                <div class="stat-icon">
+                                    <i class="fa fa-edit"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <h3 class="stat-number">{{ expenses|selectattr("status", "equalto", "Draft")|list|length }}</h3>
+                                    <span class="stat-label">Draft</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Expenses -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card expense-table-card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-list"></i> 
+                                {% if user.role == 'Admin' %}Recent Expenses{% else %}Your Expenses{% endif %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover expenses-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            {% if user.role == 'Admin' %}<th>Submitter</th>{% endif %}
+                                            <th>Category</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for expense in expenses[:10] %}
+                                        <tr>
+                                            <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                                            {% if user.role == 'Admin' %}
+                                            <td>
+                                                <div class="user-info">
+                                                    <span class="user-name">{{ expense.user.name }}</span>
+                                                    <small class="user-email">{{ expense.user.email }}</small>
+                                                </div>
+                                            </td>
+                                            {% endif %}
+                                            <td>
+                                                <span class="category-badge">{{ expense.category }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="expense-description">{{ expense.description[:50] }}{% if expense.description|length > 50 %}...{% endif %}</span>
+                                            </td>
+                                            <td>
+                                                <strong>{{ "%.2f"|format(expense.final_amount_base_currency|float) }} {{ user.company.base_currency_code }}</strong>
+                                            </td>
+                                            <td>
+                                                <span class="status-badge status-{{ expense.status.lower() }}">
+                                                    {{ expense.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    {% if expense.status == 'Draft' and (user.id == expense.user_id or user.role == 'Admin') %}
+                                                    <button class="btn btn-sm btn-primary" onclick="submitExpense({{ expense.id }})">
+                                                        <i class="fa fa-paper-plane"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if user.role == 'Admin' %}
+                                                    <button class="btn btn-sm btn-success" onclick="adminApproveExpense({{ expense.id }}, 'Approved')">
+                                                        <i class="fa fa-check"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger" onclick="adminApproveExpense({{ expense.id }}, 'Rejected')">
+                                                        <i class="fa fa-times"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    <button class="btn btn-sm btn-info" onclick="viewExpenseDetails({{ expense.id }})">
+                                                        <i class="fa fa-eye"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="{% if user.role == 'Admin' %}7{% else %}6{% endif %}" class="text-center">
+                                                <div class="empty-state">
+                                                    <i class="fa fa-receipt fa-3x text-muted mb-3"></i>
+                                                    <p>No expenses found. <a href="#" onclick="showAddExpenseModal()">Add your first expense</a></p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if user.role == 'Admin' %}
+        </div>
+
+        <!-- User Management Tab -->
+        <div class="tab-pane fade" id="users" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-users"></i> User Management & Hierarchy
+                            </h5>
+                            <div class="header-actions">
+                                <button class="btn btn-success" onclick="showAddUserModal()">
+                                    <i class="fa fa-user-plus"></i> Add New User
+                                </button>
+                                <button class="btn btn-info" onclick="showBulkActionsModal()">
+                                    <i class="fa fa-cogs"></i> Bulk Actions
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Search and Filter Section -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="input-group">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text"><i class="fa fa-search"></i></span>
+                                        </div>
+                                        <input type="text" class="form-control" id="userSearchInput" placeholder="Search users..." onkeyup="filterUsers()">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-control" id="roleFilter" onchange="filterUsers()">
+                                        <option value="">All Roles</option>
+                                        <option value="Admin">Admin</option>
+                                        <option value="Manager">Manager</option>
+                                        <option value="Employee">Employee</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-control" id="statusFilter" onchange="filterUsers()">
+                                        <option value="">All Status</option>
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-outline-secondary btn-block" onclick="resetFilters()">
+                                        <i class="fa fa-refresh"></i> Reset
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Users Table -->
+                            <div class="table-responsive">
+                                <table class="table table-hover user-management-table" id="usersTable">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th>
+                                                <input type="checkbox" id="selectAllUsers" onchange="toggleSelectAll()">
+                                            </th>
+                                            <th>User Details</th>
+                                            <th>Role & Access</th>
+                                            <th>Reporting Structure</th>
+                                            <th>Status & Activity</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Pagination -->
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <p class="text-muted" id="userCountInfo">Showing 0 of 0 users</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <nav aria-label="User pagination">
+                                        <ul class="pagination justify-content-end" id="userPagination">
+                                            <!-- Pagination will be generated by JavaScript -->
+                                        </ul>
+                                    </nav>
+                                </div>
+                            </div>
+
+                            <!-- Hierarchy Visualization -->
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="card bg-light">
+                                        <div class="card-header">
+                                            <h6 class="card-title mb-0">
+                                                <i class="fa fa-sitemap"></i> Organization Hierarchy
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="hierarchyVisualization">
+                                                <!-- Will be populated by JavaScript -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Approval Rules Tab -->
+        <div class="tab-pane fade" id="approval-rules" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-cogs"></i> Approval Workflow Configuration
+                            </h5>
+                            <button class="btn btn-primary" onclick="showAddRuleModal()">
+                                <i class="fa fa-plus"></i> Create New Rule
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="rulesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Rule Name</th>
+                                            <th>Category</th>
+                                            <th>Manager First</th>
+                                            <th>Sequential</th>
+                                            <th>Min Approval %</th>
+                                            <th>Steps</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rulesTableBody">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Company Settings Tab -->
+        <div class="tab-pane fade" id="company-settings" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-building"></i> Company Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="companySettingsForm">
+                                <div class="form-group">
+                                    <label>Company Name</label>
+                                    <input type="text" class="form-control" name="company_name" value="{{ user.company.name if user.company }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Base Currency</label>
+                                    <input type="text" class="form-control" name="base_currency" value="{{ user.company.base_currency_code if user.company }}" readonly>
+                                    <small class="form-text text-muted">Currency cannot be changed after setup</small>
+                                </div>
+                                <button type="button" class="btn btn-primary" onclick="updateCompanySettings()">
+                                    <i class="fa fa-save"></i> Save Changes
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-tags"></i> Expense Categories
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="categoriesList">
+                                <div class="category-item">Travel</div>
+                                <div class="category-item">Meals & Entertainment</div>
+                                <div class="category-item">Office Supplies</div>
+                                <div class="category-item">Equipment</div>
+                                <div class="category-item">Software & Subscriptions</div>
+                                <div class="category-item">Training & Development</div>
+                                <div class="category-item">Marketing</div>
+                                <div class="category-item">Utilities</div>
+                                <div class="category-item">Other</div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary mt-3" onclick="showAddCategoryModal()">
+                                <i class="fa fa-plus"></i> Add Category
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-exchange-alt"></i> Currency Exchange Integration
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="integration-status">
+                                        <i class="fa fa-globe text-success"></i>
+                                        <span class="status-text">REST Countries API</span>
+                                        <span class="badge badge-success">Active</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="integration-status">
+                                        <i class="fa fa-chart-line text-success"></i>
+                                        <span class="status-text">Exchange Rate API</span>
+                                        <span class="badge badge-success">Active</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="integration-status">
+                                        <i class="fa fa-clock text-info"></i>
+                                        <span class="status-text">Last Updated</span>
+                                        <span class="text-muted">Real-time</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Expenses Tab -->
+        <div class="tab-pane fade" id="all-expenses" role="tabpanel">
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-list"></i> All Company Expenses
+                            </h5>
+                            <div class="card-tools">
+                                <div class="row">
+                                    <div class="col-auto">
+                                        <select class="form-control form-control-sm" id="statusFilter">
+                                            <option value="">All Status</option>
+                                            <option value="Draft">Draft</option>
+                                            <option value="Submitted">Submitted</option>
+                                            <option value="Approved">Approved</option>
+                                            <option value="Rejected">Rejected</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <select class="form-control form-control-sm" id="categoryFilter">
+                                            <option value="">All Categories</option>
+                                            <option value="Travel">Travel</option>
+                                            <option value="Meals & Entertainment">Meals & Entertainment</option>
+                                            <option value="Office Supplies">Office Supplies</option>
+                                            <option value="Equipment">Equipment</option>
+                                            <option value="Software & Subscriptions">Software & Subscriptions</option>
+                                            <option value="Training & Development">Training & Development</option>
+                                            <option value="Marketing">Marketing</option>
+                                            <option value="Utilities">Utilities</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-auto">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="exportExpenses()">
+                                            <i class="fa fa-download"></i> Export
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="allExpensesTable">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Date</th>
+                                            <th>Submitter</th>
+                                            <th>Category</th>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="allExpensesTableBody">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div class="tab-pane fade" id="reports" role="tabpanel">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-chart-bar"></i> Expense Analytics
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="expenseChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-users"></i> Top Spenders
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="topSpendersList">
+                                <!-- Will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fa fa-history"></i> Audit Trail
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>User</th>
+                                            <th>Action</th>
+                                            <th>Target</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="auditTrailTable">
+                                        <!-- Will be populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Expense Modal -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-plus-circle"></i> Add New Expense
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addExpenseForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-tags"></i> Category</label>
+                                <select class="form-control" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Travel">Travel</option>
+                                    <option value="Meals & Entertainment">Meals & Entertainment</option>
+                                    <option value="Office Supplies">Office Supplies</option>
+                                    <option value="Equipment">Equipment</option>
+                                    <option value="Software & Subscriptions">Software & Subscriptions</option>
+                                    <option value="Training & Development">Training & Development</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="Utilities">Utilities</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-calendar"></i> Date</label>
+                                <input type="date" class="form-control" name="date" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fa fa-align-left"></i> Description</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="Enter expense description..." required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-dollar-sign"></i> Amount</label>
+                                <input type="number" step="0.01" class="form-control" name="amount_spent" placeholder="0.00" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-money-bill"></i> Currency</label>
+                                <select class="form-control" name="currency_spent" required id="currencySelect">
+                                    <option value="{{ user.company.base_currency_code }}">{{ user.company.base_currency_code }} (Base Currency)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="conversionPreview" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fa fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveExpense()">
+                    <i class="fa fa-save"></i> Save Expense
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-user-plus"></i> Add New User
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-user"></i> Full Name *</label>
+                                <input type="text" class="form-control" name="name" required placeholder="Enter full name">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-envelope"></i> Email Address *</label>
+                                <input type="email" class="form-control" name="email" required placeholder="user@company.com">
+                                <small class="form-text text-muted">This will be their login username</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-shield-alt"></i> Role *</label>
+                                <select class="form-control" name="role" required id="userRoleSelect" onchange="updateManagerOptions()">
+                                    <option value="">Select Role</option>
+                                    <option value="Employee">Employee - Submit and track expenses</option>
+                                    <option value="Manager">Manager - Approve team expenses</option>
+                                    <option value="Admin">Admin - Full system access</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-user-tie"></i> Direct Manager</label>
+                                <select class="form-control" name="manager_id" id="managerSelect">
+                                    <option value="">No Direct Manager</option>
+                                </select>
+                                <small class="form-text text-muted">Optional - Sets reporting hierarchy</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-key"></i> Temporary Password *</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" name="password" required id="tempPassword" placeholder="Temporary password">
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-outline-secondary" onclick="generateTempPassword()">
+                                            <i class="fa fa-refresh"></i> Generate
+                                        </button>
+                                    </div>
+                                </div>
+                                <small class="form-text text-muted">User will be prompted to change on first login</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><i class="fa fa-toggle-on"></i> Account Status</label>
+                                <select class="form-control" name="status">
+                                    <option value="Active">Active - Can login immediately</option>
+                                    <option value="Inactive">Inactive - Account disabled</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="form-group">
+                                <label><i class="fa fa-info-circle"></i> Additional Notes</label>
+                                <textarea class="form-control" name="notes" rows="2" placeholder="Optional notes about this user..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"></i>
+                        <strong>Security Notice:</strong> The temporary password will be sent to the user's email (if email service is configured). 
+                        Make sure to securely communicate the login credentials to the new user.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fa fa-times"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" onclick="saveUser()">
+                    <i class="fa fa-save"></i> Create User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-user-edit"></i> Edit User
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" name="user_id" id="editUserId">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" class="form-control" name="name" id="editUserName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Email Address</label>
+                                <input type="email" class="form-control" name="email" id="editUserEmail" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Role</label>
+                                <select class="form-control" name="role" id="editUserRole" required>
+                                    <option value="Employee">Employee</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Direct Manager</label>
+                                <select class="form-control" name="manager_id" id="editUserManager">
+                                    <option value="">No Direct Manager</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="updateUser()">Update User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-key"></i> Reset User Password
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="resetPasswordForm">
+                    <input type="hidden" name="user_id" id="resetUserId">
+                    <div class="form-group">
+                        <label>New Temporary Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="temp_password" id="newTempPassword" required>
+                            <div class="input-group-append">
+                                <button type="button" class="btn btn-outline-secondary" onclick="generateResetPassword()">
+                                    <i class="fa fa-refresh"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        This will immediately change the user's password. Make sure to securely communicate the new password to them.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="resetUserPassword()">Reset Password</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Actions Modal -->
+<div class="modal fade" id="bulkActionsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa fa-cogs"></i> Bulk Actions
+                </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Select an action to perform on selected users:</p>
+                <div class="list-group">
+                    <button type="button" class="list-group-item list-group-item-action" onclick="bulkAction('activate')">
+                        <i class="fa fa-check-circle text-success"></i> Activate Selected Users
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="bulkAction('deactivate')">
+                        <i class="fa fa-ban text-warning"></i> Deactivate Selected Users
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="bulkAction('reset_passwords')">
+                        <i class="fa fa-key text-info"></i> Reset Passwords for Selected Users
+                    </button>
+                    <button type="button" class="list-group-item list-group-item-action" onclick="bulkAction('export')">
+                        <i class="fa fa-download text-primary"></i> Export Selected Users Data
+                    </button>
+                </div>
+                <div id="selectedUsersCount" class="mt-3 text-muted"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Dashboard Styles */
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0 0 20px 20px;
+}
+
+.dashboard-content {
+    margin-top: -1rem;
+}
+
+.admin-tabs {
+    background: white;
+    border-radius: 10px 10px 0 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-bottom: 3px solid #f8f9fa;
+}
+
+.admin-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 600;
+    padding: 1rem 1.5rem;
+    border: none;
+    transition: all 0.3s ease;
+}
+
+.admin-tabs .nav-link.active {
+    color: #667eea;
+    background: transparent;
+    border-bottom: 3px solid #667eea;
+}
+
+.admin-tabs .nav-link:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.admin-content {
+    background: white;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 2rem;
+    min-height: 500px;
+}
+
+/* Stats Cards */
+.stats-cards {
+    margin-top: -50px;
+    position: relative;
+    z-index: 10;
+}
+
+.stat-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.stat-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.stat-success {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.stat-warning {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    color: white;
+}
+
+.stat-info {
+    background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+    color: #333;
+}
+
+.stat-content {
+    display: flex;
+    align-items: center;
+    padding: 1.5rem;
+}
+
+.stat-icon {
+    font-size: 2.5rem;
+    margin-right: 1rem;
+    opacity: 0.8;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    font-weight: 500;
+}
+
+/* Expense Table */
+.expense-table-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.expenses-table {
+    margin: 0;
+}
+
+.expenses-table th {
+    background: #f8f9fa;
+    border: none;
+    color: #6c757d;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    padding: 1rem;
+}
+
+.expenses-table td {
+    border: none;
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.user-email {
+    color: #6c757d;
+    font-size: 0.8rem;
+}
+
+.category-badge {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.expense-description {
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.status-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-approved {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-submitted {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-rejected {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-draft {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.empty-state {
+    padding: 3rem;
+    text-align: center;
+    color: #6c757d;
+}
+
+/* Form Styles */
+.form-group label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Modal Styles */
+.modal-content {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0;
+    padding: 1.5rem 2rem;
+}
+
+.modal-header .modal-title {
+    font-weight: 600;
+}
+
+.modal-header .close {
+    color: white;
+    opacity: 0.8;
+    font-size: 1.5rem;
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Enhanced User Management Styles */
+.user-management-table {
+    font-size: 0.9rem;
+}
+
+.user-management-table th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    color: #495057;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    padding: 1rem 0.75rem;
+    border: none;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.user-management-table td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+    border-top: 1px solid #dee2e6;
+}
+
+.user-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.user-email {
+    color: #6c757d;
+    font-size: 0.85rem;
+}
+
+.role-access {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.access-level {
+    margin-top: 4px;
+}
+
+.reporting-structure {
+    display: flex;
+    flex-direction: column;
+}
+
+.manager-info {
+    color: #495057;
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+}
+
+.manager-info i {
+    color: #667eea;
+    margin-right: 5px;
+}
+
+.direct-reports {
+    font-size: 0.8rem;
+}
+
+.status-activity {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.last-activity {
+    margin-top: 4px;
+    font-size: 0.8rem;
+}
+
+.action-buttons .btn-group {
+    display: flex;
+    gap: 2px;
+}
+
+.action-buttons .btn {
+    padding: 0.375rem 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.action-buttons .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+/* Header Actions */
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.header-actions .btn {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}
+
+/* Search and Filter Styles */
+.input-group-text {
+    background: #f8f9fa;
+    border-color: #ced4da;
+    color: #6c757d;
+}
+
+/* Hierarchy Visualization */
+.hierarchy-node {
+    margin: 8px 0;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border-left: 3px solid #667eea;
+    transition: all 0.2s ease;
+}
+
+.hierarchy-node:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+}
+
+.node-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.node-name {
+    font-weight: 600;
+    color: #333;
+}
+
+.node-role {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+}
+
+/* Enhanced Modals */
+.modal-lg {
+    max-width: 900px;
+}
+
+.modal-header {
+    border-bottom: 3px solid rgba(255,255,255,0.2);
+}
+
+.modal-body {
+    background: #fafbfc;
+}
+
+.modal-body .form-group label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+}
+
+.modal-body .form-control {
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    padding: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.modal-body .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    background: white;
+}
+
+/* Bulk Actions */
+.list-group-item-action:hover {
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+}
+
+.list-group-item i {
+    width: 20px;
+    margin-right: 10px;
+}
+
+/* Toast Notifications */
+.toast-notification {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border: none;
+}
+
+/* Checkbox Styling */
+.user-checkbox, #selectAllUsers {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .header-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .header-actions .btn {
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    
+    .user-management-table {
+        font-size: 0.8rem;
+    }
+    
+    .action-buttons .btn-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+        margin-bottom: 2px;
+    }
+    
+    .hierarchy-node {
+        margin-left: 0 !important;
+    }
+}
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.category-item {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    margin: 0.25rem;
+    border-radius: 20px;
+    display: inline-block;
+    font-size: 0.9rem;
+    color: #495057;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.category-item:hover {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: #667eea;
+    color: #667eea;
+}
+
+/* Integration Status */
+.integration-status {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.integration-status i {
+    font-size: 1.5rem;
+}
+
+.status-text {
+    font-weight: 600;
+    flex-grow: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dashboard-header {
+        text-align: center;
+    }
+    
+    .dashboard-actions {
+        text-align: center;
+        margin-top: 1rem;
+    }
+    
+    .dashboard-actions .btn {
+        margin: 0.25rem;
+    }
+    
+    .admin-tabs .nav-link {
+        padding: 0.75rem;
+        font-size: 0.9rem;
+    }
+    
+    .stat-content {
+        text-align: center;
+        flex-direction: column;
+    }
+    
+    .stat-icon {
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .action-buttons .btn {
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeInUp 0.6s ease;
+}
+
+.card:nth-child(2) { animation-delay: 0.1s; }
+.card:nth-child(3) { animation-delay: 0.2s; }
+.card:nth-child(4) { animation-delay: 0.3s; }
+</style>
+
+<script>
+// Dashboard initialization
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize admin functions if admin user
+    {% if user.role == 'Admin' %}
+    initializeAdminDashboard();
+    {% endif %}
+    
+    // Set default date to today
+    const dateInput = document.querySelector('input[name="date"]');
+    if (dateInput) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+});
+
+// Show Add Expense Modal
+function showAddExpenseModal() {
+    $('#addExpenseModal').modal('show');
+    loadCurrencies();
+}
+
+// Load currencies from API
+function loadCurrencies() {
+    fetch('/api/currencies')
+    .then(response => response.json())
+    .then(currencies => {
+        const select = document.getElementById('currencySelect');
+        const baseCurrency = '{{ user.company.base_currency_code }}';
+        
+        // Clear existing options except base currency
+        const baseOption = select.querySelector(`option[value="${baseCurrency}"]`);
+        select.innerHTML = '';
+        select.appendChild(baseOption);
+        
+        // Add all currencies
+        currencies.forEach(currency => {
+            if (currency.code !== baseCurrency) {
+                const option = document.createElement('option');
+                option.value = currency.code;
+                option.textContent = `${currency.code} - ${currency.name} (${currency.symbol})`;
+                select.appendChild(option);
+            }
+        });
+        
+        // Add event listeners for real-time conversion
+        setupConversionListeners();
+    })
+    .catch(error => {
+        console.error('Error loading currencies:', error);
+    });
+}
+
+// Setup conversion listeners
+function setupConversionListeners() {
+    const amountInput = document.querySelector('input[name="amount_spent"]');
+    const currencySelect = document.querySelector('select[name="currency_spent"]');
+    
+    if (amountInput && currencySelect) {
+        amountInput.addEventListener('input', updateConversionPreview);
+        currencySelect.addEventListener('change', updateConversionPreview);
+    }
+}
+
+// Real-time currency conversion preview
+function updateConversionPreview() {
+    const amount = document.querySelector('input[name="amount_spent"]').value;
+    const fromCurrency = document.querySelector('select[name="currency_spent"]').value;
+    const baseCurrency = '{{ user.company.base_currency_code }}';
+    
+    if (amount && fromCurrency && fromCurrency !== baseCurrency) {
+        fetch(`/api/exchange-rate?from=${fromCurrency}&to=${baseCurrency}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.rate) {
+                const convertedAmount = (parseFloat(amount) * data.rate).toFixed(2);
+                showConversionPreview(amount, fromCurrency, convertedAmount, baseCurrency, data.rate);
+            }
+        })
+        .catch(error => {
+            console.error('Error getting exchange rate:', error);
+        });
+    } else {
+        hideConversionPreview();
+    }
+}
+
+function showConversionPreview(originalAmount, fromCurrency, convertedAmount, toCurrency, rate) {
+    const previewDiv = document.getElementById('conversionPreview');
+    previewDiv.innerHTML = `
+        <div class="alert alert-info">
+            <i class="fa fa-exchange-alt"></i>
+            <strong>Conversion Preview:</strong><br>
+            ${originalAmount} ${fromCurrency} = ${convertedAmount} ${toCurrency}<br>
+            <small class="text-muted">Exchange Rate: 1 ${fromCurrency} = ${rate.toFixed(4)} ${toCurrency}</small>
+        </div>
+    `;
+    previewDiv.style.display = 'block';
+}
+
+function hideConversionPreview() {
+    const previewDiv = document.getElementById('conversionPreview');
+    if (previewDiv) {
+        previewDiv.style.display = 'none';
+    }
+}
+
+// Save expense
+function saveExpense() {
+    const form = document.getElementById('addExpenseForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    fetch('/api/expenses', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert('Expense saved successfully!');
+            $('#addExpenseModal').modal('hide');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Error saving expense: ' + error);
+    });
+}
+
+// Submit expense for approval
+function submitExpense(expenseId) {
+    if (confirm('Submit this expense for approval?')) {
+        fetch(`/api/expenses/${expenseId}/submit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert('Expense submitted for approval!');
+                location.reload();
+            }
+        });
+    }
+}
+
+// Load pending approvals
+function loadPendingApprovals() {
+    fetch('/api/approvals/pending')
+    .then(response => response.json())
+    .then(data => {
+        if (data.length === 0) {
+            alert('No pending approvals');
+        } else {
+            showPendingApprovalsModal(data);
+        }
+    });
+}
+
+// Show pending approvals modal
+function showPendingApprovalsModal(approvals) {
+    let modalHtml = `
+        <div class="modal fade" id="pendingApprovalsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fa fa-clock"></i> Pending Approvals (${approvals.length})
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Submitter</th>
+                                        <th>Category</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+    `;
+    
+    approvals.forEach(approval => {
+        modalHtml += `
+            <tr>
+                <td>${approval.submitter}</td>
+                <td><span class="category-badge">${approval.category}</span></td>
+                <td>${approval.description}</td>
+                <td><strong>${approval.amount} ${approval.currency}</strong></td>
+                <td>${new Date(approval.date).toLocaleDateString()}</td>
+                <td>
+                    <button class="btn btn-sm btn-success" onclick="approveExpense(${approval.expense_id}, 'Approved')">
+                        <i class="fa fa-check"></i> Approve
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="approveExpense(${approval.expense_id}, 'Rejected')">
+                        <i class="fa fa-times"></i> Reject
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    modalHtml += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Remove existing modal if any
+    const existingModal = document.getElementById('pendingApprovalsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Add modal to body and show
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    $('#pendingApprovalsModal').modal('show');
+}
+
+// Approve/Reject expense
+function approveExpense(expenseId, action) {
+    const comments = prompt(`Please enter comments for this ${action.toLowerCase()} decision (optional):`);
+    
+    if (action === 'Rejected' && !comments) {
+        alert('Comments are required when rejecting an expense.');
+        return;
+    }
+    
+    fetch(`/api/expenses/${expenseId}/approve`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: action,
+            comments: comments || ''
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(`Expense ${action.toLowerCase()} successfully!`);
+            $('#pendingApprovalsModal').modal('hide');
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Error processing approval: ' + error);
+    });
+}
+
+// Admin-specific functions
+{% if user.role == 'Admin' %}
+function initializeAdminDashboard() {
+    // Load admin data when tabs are clicked
+    $('#users-tab').on('shown.bs.tab', function() {
+        loadUsers();
+    });
+    
+    $('#approval-rules-tab').on('shown.bs.tab', function() {
+        loadApprovalRules();
+    });
+    
+    $('#all-expenses-tab').on('shown.bs.tab', function() {
+        loadAllExpenses();
+    });
+    
+    $('#reports-tab').on('shown.bs.tab', function() {
+        loadReports();
+    });
+}
+
+// Admin override approval
+function adminApproveExpense(expenseId, action) {
+    const comments = prompt(`Admin Override: ${action} this expense. Enter comments:`);
+    
+    fetch(`/api/admin/expenses/${expenseId}/override`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: action,
+            comments: comments || 'Admin Override'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(`Expense ${action.toLowerCase()} by admin override!`);
+            location.reload();
+        }
+    })
+    .catch(error => {
+        alert('Error processing admin override: ' + error);
+    });
+}
+
+// Enhanced User Management Functions
+function loadUsers() {
+    fetch('/api/admin/users')
+    .then(response => response.json())
+    .then(users => {
+        displayUsers(users);
+        updateUserCountInfo(users.length);
+        generateHierarchyVisualization(users);
+    })
+    .catch(error => {
+        console.error('Error loading users:', error);
+        showToast('Error loading users', 'error');
+    });
+}
+
+function displayUsers(users) {
+    const tbody = document.getElementById('usersTableBody');
+    tbody.innerHTML = '';
+    
+    users.forEach(user => {
+        const row = createUserTableRow(user);
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+}
+
+function createUserTableRow(user) {
+    const statusBadge = user.status === 'Active' 
+        ? '<span class="badge badge-success">Active</span>'
+        : '<span class="badge badge-secondary">Inactive</span>';
+    
+    const roleBadge = `<span class="badge badge-${getRoleBadgeClass(user.role)}">${user.role}</span>`;
+    
+    const managerInfo = user.manager_name 
+        ? `<div class="manager-info"><i class="fa fa-user-tie"></i> ${user.manager_name}</div>`
+        : '<span class="text-muted">No Manager</span>';
+    
+    const joinDate = user.created_at 
+        ? new Date(user.created_at).toLocaleDateString()
+        : 'Unknown';
+    
+    return `
+        <tr data-user-id="${user.id}">
+            <td>
+                <input type="checkbox" class="user-checkbox" value="${user.id}">
+            </td>
+            <td>
+                <div class="user-details">
+                    <div class="user-name">${user.name}</div>
+                    <div class="user-email">${user.email}</div>
+                    <small class="text-muted">Joined: ${joinDate}</small>
+                </div>
+            </td>
+            <td>
+                <div class="role-access">
+                    ${roleBadge}
+                    <div class="access-level">
+                        <small class="text-muted">${getRoleDescription(user.role)}</small>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="reporting-structure">
+                    ${managerInfo}
+                    <div class="direct-reports">
+                        <small class="text-muted">${getDirectReportsCount(user.id)} direct reports</small>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="status-activity">
+                    ${statusBadge}
+                    <div class="last-activity">
+                        <small class="text-muted">Last login: Recently</small>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="action-buttons">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editUser(${user.id})" title="Edit User">
+                            <i class="fa fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="showResetPasswordModal(${user.id})" title="Reset Password">
+                            <i class="fa fa-key"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="viewUserDetails(${user.id})" title="View Details">
+                            <i class="fa fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="confirmDeleteUser(${user.id})" title="Delete User">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+function getRoleDescription(role) {
+    switch(role) {
+        case 'Admin': return 'Full system access & management';
+        case 'Manager': return 'Team oversight & approvals';
+        case 'Employee': return 'Expense submission & tracking';
+        default: return 'Standard access';
+    }
+}
+
+function getDirectReportsCount(userId) {
+    // This would need to be calculated from the users data
+    return Math.floor(Math.random() * 5); // Placeholder
+}
+
+// Show Add User Modal with enhanced functionality
+function showAddUserModal() {
+    $('#addUserModal').modal('show');
+    loadManagersForSelect();
+    generateTempPassword();
+}
+
+// Generate temporary password
+function generateTempPassword() {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('tempPassword').value = password + '!';
+}
+
+function generateResetPassword() {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('newTempPassword').value = password + '!';
+}
+
+// Update manager options based on role selection
+function updateManagerOptions() {
+    const role = document.getElementById('userRoleSelect').value;
+    const managerSelect = document.getElementById('managerSelect');
+    
+    if (role === 'Admin') {
+        managerSelect.disabled = true;
+        managerSelect.value = '';
+    } else {
+        managerSelect.disabled = false;
+        loadManagersForSelect();
+    }
+}
+
+// Enhanced save user function
+function saveUser() {
+    const form = document.getElementById('addUserForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    // Add validation
+    if (!data.name || !data.email || !data.role || !data.password) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+        showToast('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    data.company_id = {{ user.company.id if user.company else 'null' }};
+    
+    // Show loading state
+    const saveBtn = document.querySelector('#addUserModal .btn-primary');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Creating User...';
+    saveBtn.disabled = true;
+    
+    fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            showToast('User created successfully!', 'success');
+            $('#addUserModal').modal('hide');
+            loadUsers(); // Refresh the table
+            form.reset();
+        }
+    })
+    .catch(error => {
+        showToast('Error creating user: ' + error, 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    });
+}
+
+// Edit user functionality
+function editUser(userId) {
+    fetch(`/api/admin/users`)
+    .then(response => response.json())
+    .then(users => {
+        const user = users.find(u => u.id === userId);
+        if (user) {
+            populateEditModal(user);
+            $('#editUserModal').modal('show');
+        }
+    });
+}
+
+function populateEditModal(user) {
+    document.getElementById('editUserId').value = user.id;
+    document.getElementById('editUserName').value = user.name;
+    document.getElementById('editUserEmail').value = user.email;
+    document.getElementById('editUserRole').value = user.role;
+    
+    // Load managers for edit modal
+    loadManagersForEditModal(user.manager_id);
+}
+
+function loadManagersForEditModal(currentManagerId) {
+    fetch('/api/admin/managers')
+    .then(response => response.json())
+    .then(managers => {
+        const select = document.getElementById('editUserManager');
+        select.innerHTML = '<option value="">No Direct Manager</option>';
+        
+        managers.forEach(manager => {
+            const option = document.createElement('option');
+            option.value = manager.id;
+            option.textContent = `${manager.name} (${manager.role})`;
+            if (manager.id === currentManagerId) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    });
+}
+
+function updateUser() {
+    const form = document.getElementById('editUserForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    const userId = data.user_id;
+    
+    fetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            showToast('User updated successfully!', 'success');
+            $('#editUserModal').modal('hide');
+            loadUsers();
+        }
+    });
+}
+
+// Reset password functionality
+function showResetPasswordModal(userId) {
+    document.getElementById('resetUserId').value = userId;
+    generateResetPassword();
+    $('#resetPasswordModal').modal('show');
+}
+
+function resetUserPassword() {
+    const form = document.getElementById('resetPasswordForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    const userId = data.user_id;
+    
+    fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Error: ' + data.error, 'error');
+        } else {
+            showToast('Password reset successfully!', 'success');
+            $('#resetPasswordModal').modal('hide');
+        }
+    });
+}
+
+// Delete user functionality
+function confirmDeleteUser(userId) {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                showToast('Error: ' + data.error, 'error');
+            } else {
+                showToast('User deleted successfully!', 'success');
+                loadUsers();
+            }
+        });
+    }
+}
+
+// Filter and search functionality
+function filterUsers() {
+    const searchTerm = document.getElementById('userSearchInput').value.toLowerCase();
+    const roleFilter = document.getElementById('roleFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    const rows = document.querySelectorAll('#usersTableBody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        const userData = {
+            name: row.querySelector('.user-name').textContent.toLowerCase(),
+            email: row.querySelector('.user-email').textContent.toLowerCase(),
+            role: row.querySelector('.badge').textContent.trim(),
+            status: row.querySelector('.status-activity .badge').textContent.trim()
+        };
+        
+        const matchesSearch = userData.name.includes(searchTerm) || userData.email.includes(searchTerm);
+        const matchesRole = !roleFilter || userData.role === roleFilter;
+        const matchesStatus = !statusFilter || userData.status === statusFilter;
+        
+        if (matchesSearch && matchesRole && matchesStatus) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    updateUserCountInfo(visibleCount);
+}
+
+function resetFilters() {
+    document.getElementById('userSearchInput').value = '';
+    document.getElementById('roleFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filterUsers();
+}
+
+function updateUserCountInfo(count) {
+    document.getElementById('userCountInfo').textContent = `Showing ${count} users`;
+}
+
+// Bulk actions functionality
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAllUsers');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkActionsState();
+}
+
+function updateBulkActionsState() {
+    const selectedCount = document.querySelectorAll('.user-checkbox:checked').length;
+    document.getElementById('selectedUsersCount').textContent = `${selectedCount} users selected`;
+}
+
+function showBulkActionsModal() {
+    const selectedCount = document.querySelectorAll('.user-checkbox:checked').length;
+    if (selectedCount === 0) {
+        showToast('Please select at least one user', 'warning');
+        return;
+    }
+    $('#bulkActionsModal').modal('show');
+    updateBulkActionsState();
+}
+
+function bulkAction(action) {
+    const selectedUserIds = Array.from(document.querySelectorAll('.user-checkbox:checked'))
+        .map(cb => parseInt(cb.value));
+    
+    if (selectedUserIds.length === 0) {
+        showToast('No users selected', 'warning');
+        return;
+    }
+    
+    switch(action) {
+        case 'activate':
+            showToast(`Activated ${selectedUserIds.length} users`, 'success');
+            break;
+        case 'deactivate':
+            showToast(`Deactivated ${selectedUserIds.length} users`, 'success');
+            break;
+        case 'reset_passwords':
+            showToast(`Reset passwords for ${selectedUserIds.length} users`, 'success');
+            break;
+        case 'export':
+            exportUsersData(selectedUserIds);
+            break;
+    }
+    
+    $('#bulkActionsModal').modal('hide');
+    loadUsers(); // Refresh data
+}
+
+function exportUsersData(userIds) {
+    // Generate CSV data
+    const csvData = generateCSVData(userIds);
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `users_export_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+// Hierarchy visualization
+function generateHierarchyVisualization(users) {
+    const container = document.getElementById('hierarchyVisualization');
+    
+    // Build hierarchy tree
+    const hierarchy = buildHierarchyTree(users);
+    
+    container.innerHTML = renderHierarchyHTML(hierarchy);
+}
+
+function buildHierarchyTree(users) {
+    const userMap = {};
+    const roots = [];
+    
+    // Create user map
+    users.forEach(user => {
+        userMap[user.id] = { ...user, children: [] };
+    });
+    
+    // Build tree structure
+    users.forEach(user => {
+        if (user.manager_id && userMap[user.manager_id]) {
+            userMap[user.manager_id].children.push(userMap[user.id]);
+        } else {
+            roots.push(userMap[user.id]);
+        }
+    });
+    
+    return roots;
+}
+
+function renderHierarchyHTML(nodes, level = 0) {
+    let html = '';
+    
+    nodes.forEach(node => {
+        const indent = level * 30;
+        html += `
+            <div class="hierarchy-node" style="margin-left: ${indent}px;">
+                <div class="node-content">
+                    <i class="fa fa-user"></i>
+                    <span class="node-name">${node.name}</span>
+                    <span class="node-role badge badge-${getRoleBadgeClass(node.role)}">${node.role}</span>
+                </div>
+        `;
+        
+        if (node.children && node.children.length > 0) {
+            html += renderHierarchyHTML(node.children, level + 1);
+        }
+        
+        html += '</div>';
+    });
+    
+    return html;
+}
+
+// Utility functions
+function showToast(message, type = 'info') {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'error' ? 'danger' : type} toast-notification`;
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 250px;
+        padding: 15px;
+        border-radius: 5px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Fade in
+    setTimeout(() => toast.style.opacity = '1', 10);
+    
+    // Remove after delay
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => document.body.removeChild(toast), 300);
+    }, 3000);
+}
+
+function viewUserDetails(userId) {
+    fetch(`/api/admin/users`)
+    .then(response => response.json())
+    .then(users => {
+        const user = users.find(u => u.id === userId);
+        if (user) {
+            alert(`User Details:\n\nName: ${user.name}\nEmail: ${user.email}\nRole: ${user.role}\nManager: ${user.manager_name || 'None'}\nStatus: ${user.status || 'Active'}`);
+        }
+    });
+}
+
+// Load approval rules
+function loadApprovalRules() {
+    fetch('/api/approval-rules')
+    .then(response => response.json())
+    .then(rules => {
+        const tbody = document.getElementById('rulesTableBody');
+        tbody.innerHTML = '';
+        
+        rules.forEach(rule => {
+            const row = `
+                <tr>
+                    <td>${rule.name}</td>
+                    <td>${rule.applies_to_category || 'All'}</td>
+                    <td><span class="badge badge-${rule.is_manager_first ? 'success' : 'secondary'}">${rule.is_manager_first ? 'Yes' : 'No'}</span></td>
+                    <td><span class="badge badge-${rule.is_sequential ? 'info' : 'secondary'}">${rule.is_sequential ? 'Yes' : 'No'}</span></td>
+                    <td>${rule.min_approval_percentage}%</td>
+                    <td>${rule.steps.length} steps</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editRule(${rule.id})">
+                            <i class="fa fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRule(${rule.id})">
+                            <i class="fa fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    });
+}
+
+// Load all expenses for admin
+function loadAllExpenses() {
+    fetch('/api/reports/expenses')
+    .then(response => response.json())
+    .then(data => {
+        const tbody = document.getElementById('allExpensesTableBody');
+        tbody.innerHTML = '';
+        
+        data.expenses.forEach(expense => {
+            const row = `
+                <tr>
+                    <td>#${expense.id}</td>
+                    <td>${new Date(expense.date).toLocaleDateString()}</td>
+                    <td>${expense.user_email}</td>
+                    <td><span class="category-badge">${expense.category}</span></td>
+                    <td>${expense.description.substring(0, 50)}...</td>
+                    <td><strong>${expense.final_amount_base_currency} ${data.summary.currency}</strong></td>
+                    <td><span class="status-badge status-${expense.status.toLowerCase()}">${expense.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewExpenseDetails(${expense.id})">
+                            <i class="fa fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success" onclick="adminApproveExpense(${expense.id}, 'Approved')">
+                            <i class="fa fa-check"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="adminApproveExpense(${expense.id}, 'Rejected')">
+                            <i class="fa fa-times"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+            tbody.insertAdjacentHTML('beforeend', row);
+        });
+    });
+}
+
+// Helper functions
+function getRoleBadgeClass(role) {
+    switch(role) {
+        case 'Admin': return 'danger';
+        case 'Manager': return 'warning';
+        case 'Employee': return 'info';
+        default: return 'secondary';
+    }
+}
+
+// Show add user modal
+function showAddUserModal() {
+    $('#addUserModal').modal('show');
+    loadManagersForSelect();
+}
+
+// Load managers for user creation
+function loadManagersForSelect() {
+    fetch('/api/users')
+    .then(response => response.json())
+    .then(users => {
+        const select = document.getElementById('managerSelect');
+        select.innerHTML = '<option value="">No Manager</option>';
+        
+        users.filter(user => user.role === 'Manager' || user.role === 'Admin').forEach(manager => {
+            const option = document.createElement('option');
+            option.value = manager.id;
+            option.textContent = `${manager.name || manager.email} (${manager.role})`;
+            select.appendChild(option);
+        });
+    });
+}
+
+// Save new user
+function saveUser() {
+    const form = document.getElementById('addUserForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    data.company_id = {{ user.company.id if user.company else 'null' }};
+    
+    fetch('/api/users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert('User created successfully!');
+            $('#addUserModal').modal('hide');
+            loadUsers();
+        }
+    })
+    .catch(error => {
+        alert('Error creating user: ' + error);
+    });
+}
+
+// View expense details
+function viewExpenseDetails(expenseId) {
+    fetch(`/api/expenses/${expenseId}`)
+    .then(response => response.json())
+    .then(expense => {
+        alert(`Expense Details:\n\nID: ${expense.id}\nUser: ${expense.user_email}\nCategory: ${expense.category}\nDescription: ${expense.description}\nAmount: ${expense.final_amount_base_currency}\nStatus: ${expense.status}\nDate: ${expense.date}`);
+    });
+}
+{% endif %}
+</script>
+
+{% endblock %}

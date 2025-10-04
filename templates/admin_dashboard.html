@@ -1,0 +1,607 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - User Management{% endblock %}
+
+{% block content %}
+<!-- Admin Navigation Bar -->
+<div class="admin-nav bg-dark text-white py-2">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <small>
+                    <i class="fa fa-shield-alt"></i> Welcome back, Admin!
+                    <span class="badge badge-danger ml-1">Admin Panel</span>
+                </small>
+            </div>
+            <div class="col-md-6 text-right">
+                <a href="{{ url_for('approval_rules') }}" class="btn btn-sm btn-outline-light mr-2">
+                    <i class="fa fa-sitemap"></i> Approval Rules
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-light mr-2">
+                    <i class="fa fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">
+                    <i class="fa fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fa fa-shield-alt"></i> Admin Panel - User Management
+                    </h3>
+                    <p class="mb-0">Create and manage company users with roles and permissions</p>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <!-- New User Creation Section -->
+                    <div class="row mb-5">
+                        <div class="col-12">
+                            <div class="card border-success">
+                                <div class="card-header bg-success text-white">
+                                    <h5 class="mb-0"><i class="fa fa-user-plus"></i> Create New User</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="newUserForm" class="row">
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label class="font-weight-bold">User Name</label>
+                                                <input type="text" class="form-control form-control-lg" 
+                                                       name="name" required placeholder="Full Name">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label class="font-weight-bold">Role</label>
+                                                <select class="form-control form-control-lg" name="role" required>
+                                                    <option value="">Select Role</option>
+                                                    <option value="Employee">Employee</option>
+                                                    <option value="Manager">Manager</option>
+                                                    <option value="Admin">Admin</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label class="font-weight-bold">Manager</label>
+                                                <select class="form-control form-control-lg" name="manager_id" id="managerSelect">
+                                                    <option value="">No Manager</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="form-group">
+                                                <label class="font-weight-bold">Email</label>
+                                                <input type="email" class="form-control form-control-lg" 
+                                                       name="email" required placeholder="user@company.com">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <div class="form-group">
+                                                <label class="font-weight-bold">&nbsp;</label>
+                                                <button type="button" class="btn btn-success btn-lg btn-block" 
+                                                        onclick="createUser()">
+                                                    <i class="fa fa-plus"></i> Create User
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search and Actions -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h5><i class="fa fa-table"></i> User Management Table</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="searchInput" 
+                                       placeholder="Search users..." onkeyup="filterUsers()">
+                                <div class="input-group-append">
+                                    <span class="input-group-text"><i class="fa fa-search"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Users Table -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th width="20%"><i class="fa fa-user"></i> User Name</th>
+                                    <th width="15%"><i class="fa fa-shield-alt"></i> Role</th>
+                                    <th width="20%"><i class="fa fa-user-tie"></i> Manager</th>
+                                    <th width="25%"><i class="fa fa-envelope"></i> Email</th>
+                                    <th width="20%"><i class="fa fa-cogs"></i> Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                        <p class="mt-2 text-muted">Loading users...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+}
+
+.card {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 10px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.form-control-lg {
+    font-size: 1rem;
+    padding: 0.75rem;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    background: #f8f9fa;
+}
+
+.badge-lg {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.table-responsive {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.border-success {
+    border-color: #28a745 !important;
+}
+
+.text-muted {
+    color: #6c757d !important;
+}
+
+/* Hover effects */
+.btn:hover {
+    transform: translateY(-1px);
+    transition: all 0.2s;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Animation for loading */
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+</style>
+
+<script>
+// Initialize admin dashboard
+console.log('🚀 Admin dashboard script starting...');
+
+// Wait for jQuery and DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded');
+    initializeAdminDashboard();
+});
+
+// Also use jQuery ready when available
+if (typeof $ !== 'undefined') {
+    $(document).ready(function() {
+        console.log('jQuery ready triggered');
+        initializeAdminDashboard();
+    });
+} else {
+    // Fallback if jQuery not loaded yet
+    window.addEventListener('load', function() {
+        console.log('Window load triggered');
+        setTimeout(initializeAdminDashboard, 1000);
+    });
+}
+
+// Main initialization function
+function initializeAdminDashboard() {
+    console.log('🔄 Initializing admin dashboard...');
+    
+    // Check if already initialized
+    if (window.adminInitialized) {
+        console.log('Already initialized, skipping...');
+        return;
+    }
+    window.adminInitialized = true;
+    
+    // Check jQuery
+    if (typeof $ === 'undefined') {
+        console.error('❌ jQuery not available');
+        alert('❌ ERROR: jQuery not loaded. Please refresh the page.');
+        return;
+    }
+    
+    console.log('✅ jQuery available, version:', $.fn.jquery);
+    
+    // Initialize components
+    loadUsers();
+    loadManagers();
+}
+
+// Global variables
+let allUsers = [];
+
+// Load all users from API
+function loadUsers() {
+    console.log('📥 Loading users...');
+    
+    const tbody = document.getElementById('usersTableBody');
+    if (!tbody) {
+        console.error('❌ usersTableBody element not found');
+        return;
+    }
+    
+    // Show loading state
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading users...</p>
+            </td>
+        </tr>
+    `;
+    
+    console.log('🌐 Making API call to /api/admin/users...');
+    
+    fetch('/api/admin/users')
+        .then(response => {
+            console.log('📡 API Response received, status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('📊 API Data received:', data);
+            if (data.success) {
+                allUsers = data.users || [];
+                console.log('👥 Loaded', allUsers.length, 'users');
+                displayUsers(allUsers);
+            } else {
+                throw new Error(data.error || data.message || 'Unknown API error');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error loading users:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center py-4">
+                        <div class="alert alert-danger">
+                            <h5>❌ Error Loading Users</h5>
+                            <p>${error.message}</p>
+                            <button class="btn btn-primary" onclick="loadUsers()">🔄 Retry</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+// Display users in the table
+function displayUsers(users) {
+    console.log('🖥️ Displaying users:', users);
+    const tbody = document.getElementById('usersTableBody');
+    
+    if (users.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="text-center py-4">
+                    <i class="fa fa-users fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No users found. Create your first user above.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = users.map(user => `
+        <tr>
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="avatar-circle bg-primary text-white mr-3">
+                        ${user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <strong>${user.name}</strong>
+                </div>
+            </td>
+            <td>
+                <span class="badge badge-lg badge-${getRoleBadgeClass(user.role)} px-3 py-2">
+                    ${user.role}
+                </span>
+            </td>
+            <td>${user.manager_name || '<span class="text-muted">No Manager</span>'}</td>
+            <td>
+                <i class="fa fa-envelope text-muted mr-1"></i>
+                ${user.email}
+            </td>
+            <td>
+                <button class="btn btn-warning btn-sm mr-1" onclick="editUser(${user.id})" 
+                        title="Edit User">
+                    <i class="fa fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-info btn-sm mr-1" onclick="sendPassword(${user.id})" 
+                        title="Send Password">
+                    <i class="fa fa-paper-plane"></i> Send Password
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})" 
+                        title="Delete User">
+                    <i class="fa fa-trash"></i> Delete
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    console.log('✅ Users displayed successfully');
+}
+
+// Get appropriate badge class for user role
+function getRoleBadgeClass(role) {
+    switch(role) {
+        case 'Admin': return 'danger';
+        case 'Manager': return 'warning';
+        case 'Employee': return 'primary';
+        default: return 'secondary';
+    }
+}
+
+// Load managers for dropdown
+function loadManagers() {
+    console.log('👔 Loading managers...');
+    
+    fetch('/api/admin/managers')
+        .then(response => response.json())
+        .then(data => {
+            console.log('👔 Managers data:', data);
+            if (data.success) {
+                const managerSelect = document.getElementById('managerSelect');
+                if (managerSelect) {
+                    const options = '<option value="">No Manager</option>' + 
+                        data.managers.map(manager => 
+                            `<option value="${manager.id}">${manager.name} (${manager.role})</option>`
+                        ).join('');
+                    managerSelect.innerHTML = options;
+                    console.log('✅ Managers loaded successfully');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error loading managers:', error);
+        });
+}
+
+// Create new user
+function createUser() {
+    console.log('➕ Creating new user...');
+    
+    const form = document.getElementById('newUserForm');
+    const formData = new FormData(form);
+    
+    // Validate required fields
+    if (!formData.get('name') || !formData.get('email') || !formData.get('role')) {
+        alert('❌ Please fill in all required fields');
+        return;
+    }
+    
+    // Generate temporary password
+    const tempPassword = generatePassword();
+    
+    const userData = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        role: formData.get('role'),
+        manager_id: formData.get('manager_id') || null,
+        password: tempPassword,
+        status: 'Active'
+    };
+    
+    console.log('📤 Sending user data:', userData);
+    
+    fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData)
+    })
+    .then(response => {
+        console.log('📡 Create user response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('📊 Create user response:', data);
+        if (data.success) {
+            form.reset();
+            loadUsers();
+            loadManagers();
+            // User created successfully
+        } else {
+            alert('❌ Error creating user: ' + (data.error || data.message || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error creating user:', error);
+        alert('❌ Failed to create user: ' + error.message);
+    });
+}
+
+// Send password to user
+function sendPassword(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+    
+    if (confirm(`Send new password to ${user.name} (${user.email})?`)) {
+        fetch(`/api/admin/users/${userId}/reset-password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                temp_password: generatePassword()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ New password sent to ' + user.email + ': ' + data.new_password);
+            } else {
+                alert('❌ Error sending password: ' + (data.error || data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error sending password:', error);
+            alert('❌ Failed to send password: ' + error.message);
+        });
+    }
+}
+
+// Edit user
+function editUser(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+    
+    const newName = prompt('Edit user name:', user.name);
+    if (newName && newName !== user.name) {
+        fetch(`/api/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({name: newName})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadUsers();
+                alert('✅ User updated successfully!');
+            } else {
+                alert('❌ Error updating user: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error updating user:', error);
+            alert('❌ Failed to update user: ' + error.message);
+        });
+    }
+}
+
+// Delete user
+function deleteUser(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+    
+    if (confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+        fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                loadUsers();
+                loadManagers();
+                alert('✅ User deleted successfully!');
+            } else {
+                alert('❌ Error deleting user: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error deleting user:', error);
+            alert('❌ Failed to delete user: ' + error.message);
+        });
+    }
+}
+
+// Filter users based on search input
+function filterUsers() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const filteredUsers = allUsers.filter(user => 
+        user.name.toLowerCase().includes(searchTerm) ||
+        user.email.toLowerCase().includes(searchTerm) ||
+        user.role.toLowerCase().includes(searchTerm) ||
+        (user.manager_name && user.manager_name.toLowerCase().includes(searchTerm))
+    );
+    displayUsers(filteredUsers);
+}
+
+// Generate random password
+function generatePassword() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+}
+
+console.log('🎯 Admin dashboard script loaded completely');
+</script>
+
+{% endblock %}

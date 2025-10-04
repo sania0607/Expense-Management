@@ -1,0 +1,746 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel - Approval Rules{% endblock %}
+
+{% block content %}
+<!-- Admin Navigation Bar -->
+<div class="admin-nav bg-dark text-white py-2">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <small>
+                    <i class="fa fa-shield-alt"></i> Welcome back, Admin!
+                    <span class="badge badge-danger ml-1">Admin Panel</span>
+                </small>
+            </div>
+            <div class="col-md-6 text-right">
+                <a href="{{ url_for('admin_dashboard') }}" class="btn btn-sm btn-outline-light mr-2">
+                    <i class="fa fa-users"></i> User Management
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-outline-light mr-2">
+                    <i class="fa fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light">
+                    <i class="fa fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-gradient-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fa fa-sitemap"></i> Admin View - Approval Rules
+                    </h3>
+                    <p class="mb-0">Configure expense approval workflows and rules</p>
+                </div>
+                <div class="card-body p-4">
+                    
+                    <!-- Create New Approval Rule Section -->
+                    <div class="row mb-5">
+                        <div class="col-12">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white">
+                                    <h5 class="mb-0"><i class="fa fa-plus-circle"></i> Create New Approval Rule</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="approvalRuleForm" class="approval-rule-form">
+                                        <div class="row mb-4">
+                                            <!-- User Field -->
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold text-dark">User</label>
+                                                    <select class="form-control form-control-lg" name="user_id" id="userSelect" required>
+                                                        <option value="">Select User</option>
+                                                    </select>
+                                                    <small class="text-muted">Select the user this rule applies to</small>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Manager Field -->
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold text-dark">Manager</label>
+                                                    <select class="form-control form-control-lg" name="manager_id" id="managerSelect">
+                                                        <option value="">Select Manager</option>
+                                                    </select>
+                                                    <small class="text-muted">Initially the manager set on user record should be set, admin can change manager for approval if required</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Description Field -->
+                                        <div class="row mb-4">
+                                            <div class="col-12">
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold text-dark">Description about rule</label>
+                                                    <input type="text" class="form-control form-control-lg" 
+                                                           name="description" placeholder="e.g., Approval rule for miscellaneous expenses" required>
+                                                    <small class="text-muted">Describe what this approval rule is for</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Approvers Section -->
+                                        <div class="row mb-4">
+                                            <div class="col-12">
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold text-dark">Approvers</label>
+                                                    <div class="approvers-container bg-light p-3 rounded">
+                                                        <div class="row mb-3">
+                                                            <div class="col-md-8">
+                                                                <select class="form-control" id="approverSelect">
+                                                                    <option value="">Select an approver to add</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <button type="button" class="btn btn-primary" onclick="addApprover()">
+                                                                    <i class="fa fa-plus"></i> Add Approver
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <!-- Approvers List -->
+                                                        <div id="approversList" class="approvers-list">
+                                                            <div class="text-muted text-center py-3">
+                                                                <i class="fa fa-users fa-3x mb-2"></i>
+                                                                <p>No approvers added yet. Add approvers from the dropdown above.</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Advanced Options -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input" id="isManagerFirst" name="is_manager_first">
+                                                        <label class="custom-control-label font-weight-bold" for="isManagerFirst">
+                                                            Is manager an approver?
+                                                        </label>
+                                                        <div class="text-muted small mt-1">
+                                                            If this field is checked then by default the approve request would go to his/her manager first, before going to other approvers
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <div class="custom-control custom-checkbox">
+                                                        <input type="checkbox" class="custom-control-input" id="approversSequence" name="is_sequential">
+                                                        <label class="custom-control-label font-weight-bold" for="approversSequence">
+                                                            Approvers Sequence
+                                                        </label>
+                                                        <div class="text-muted small mt-1">
+                                                            If this field is ticked true then the above mentioned sequence of approvers, that is first the request goes to John, if he approves/rejects then only request goes to Mitchell and so on.<br>
+                                                            If the required approver rejects the request, then expense request is auto-rejected.<br>
+                                                            If not ticked then send approver request to all approvers at the same time.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Minimum Approval Percentage -->
+                                        <div class="row mb-4">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label class="font-weight-bold text-dark">Minimum Approval Percentage</label>
+                                                    <div class="input-group">
+                                                        <input type="number" class="form-control form-control-lg" 
+                                                               name="min_approval_percentage" placeholder="100" min="1" max="100" value="100">
+                                                        <div class="input-group-append">
+                                                            <span class="input-group-text">%</span>
+                                                        </div>
+                                                    </div>
+                                                    <small class="text-muted">Percentage of approvers required to approve the request</small>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Submit Button -->
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <button type="button" class="btn btn-success btn-lg px-5" onclick="createApprovalRule()">
+                                                    <i class="fa fa-save"></i> Create Approval Rule
+                                                </button>
+                                                <button type="reset" class="btn btn-secondary btn-lg px-5 ml-3">
+                                                    <i class="fa fa-undo"></i> Reset Form
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Existing Approval Rules -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card border-warning">
+                                <div class="card-header bg-warning text-dark">
+                                    <h5 class="mb-0"><i class="fa fa-list"></i> Existing Approval Rules</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead class="thead-dark">
+                                                <tr>
+                                                    <th><i class="fa fa-user"></i> User</th>
+                                                    <th><i class="fa fa-file-alt"></i> Description</th>
+                                                    <th><i class="fa fa-user-tie"></i> Manager First</th>
+                                                    <th><i class="fa fa-sort-numeric-up"></i> Sequential</th>
+                                                    <th><i class="fa fa-percentage"></i> Min %</th>
+                                                    <th><i class="fa fa-users"></i> Approvers</th>
+                                                    <th><i class="fa fa-cogs"></i> Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="approvalRulesTableBody">
+                                                <tr>
+                                                    <td colspan="7" class="text-center py-4">
+                                                        <div class="spinner-border text-primary" role="status">
+                                                            <span class="sr-only">Loading...</span>
+                                                        </div>
+                                                        <p class="mt-2 text-muted">Loading approval rules...</p>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+}
+
+.card {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 10px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+}
+
+.form-control-lg {
+    font-size: 1rem;
+    padding: 0.75rem;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+}
+
+.approvers-container {
+    border: 2px dashed #dee2e6;
+    min-height: 200px;
+}
+
+.approver-item {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 25px;
+    margin: 5px;
+    display: inline-flex;
+    align-items: center;
+    animation: slideIn 0.3s ease-out;
+}
+
+.approver-item .remove-approver {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    border-radius: 50%;
+    width: 25px;
+    height: 25px;
+    margin-left: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.approver-item .remove-approver:hover {
+    background: rgba(220, 53, 69, 0.8);
+    transform: scale(1.1);
+}
+
+.approver-sequence {
+    background: linear-gradient(45deg, #6f42c1, #e83e8c);
+    color: white;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-right: 8px;
+    font-weight: bold;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.custom-control-label {
+    cursor: pointer;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    transition: all 0.2s;
+}
+
+.border-info {
+    border-color: #17a2b8 !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.spinner-border {
+    width: 2rem;
+    height: 2rem;
+}
+
+.approval-rule-form label {
+    color: #495057;
+    font-weight: 600;
+}
+</style>
+
+<script>
+console.log('🚀 Approval Rules script starting...');
+
+// Global variables
+let allUsers = [];
+let allManagers = [];
+let selectedApprovers = [];
+let approverSequence = 1;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM Content Loaded');
+    initializeApprovalRules();
+});
+
+// Main initialization function
+function initializeApprovalRules() {
+    console.log('🔄 Initializing approval rules...');
+    
+    // Check jQuery
+    if (typeof $ === 'undefined') {
+        console.error('❌ jQuery not available');
+        return;
+    }
+    
+    console.log('✅ jQuery available, version:', $.fn.jquery);
+    
+    // Load data
+    loadUsers();
+    loadManagers();
+    loadApprovalRules();
+    
+    // Setup form events
+    setupFormEvents();
+}
+
+// Load all users for dropdowns
+function loadUsers() {
+    console.log('📥 Loading users...');
+    
+    fetch('/api/admin/users')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allUsers = data.users || [];
+                console.log('👥 Loaded', allUsers.length, 'users');
+                populateUserDropdowns();
+            } else {
+                console.error('Error loading users:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error loading users:', error);
+        });
+}
+
+// Load managers
+function loadManagers() {
+    console.log('👔 Loading managers...');
+    
+    fetch('/api/admin/managers')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allManagers = data.managers || [];
+                console.log('👔 Loaded', allManagers.length, 'managers');
+                populateManagerDropdown();
+            } else {
+                console.error('Error loading managers:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error loading managers:', error);
+        });
+}
+
+// Populate user dropdowns
+function populateUserDropdowns() {
+    const userSelect = document.getElementById('userSelect');
+    const approverSelect = document.getElementById('approverSelect');
+    
+    if (userSelect) {
+        userSelect.innerHTML = '<option value="">Select User</option>' + 
+            allUsers.map(user => 
+                `<option value="${user.id}">${user.name} (${user.role})</option>`
+            ).join('');
+    }
+    
+    if (approverSelect) {
+        approverSelect.innerHTML = '<option value="">Select an approver to add</option>' + 
+            allUsers.filter(user => user.role === 'Manager' || user.role === 'Admin').map(user => 
+                `<option value="${user.id}">${user.name} (${user.role})</option>`
+            ).join('');
+    }
+}
+
+// Populate manager dropdown
+function populateManagerDropdown() {
+    const managerSelect = document.getElementById('managerSelect');
+    
+    if (managerSelect) {
+        managerSelect.innerHTML = '<option value="">Select Manager</option>' + 
+            allManagers.map(manager => 
+                `<option value="${manager.id}">${manager.name} (${manager.role})</option>`
+            ).join('');
+    }
+}
+
+// Setup form events
+function setupFormEvents() {
+    // User selection change - auto-populate manager
+    const userSelect = document.getElementById('userSelect');
+    if (userSelect) {
+        userSelect.addEventListener('change', function() {
+            const selectedUserId = this.value;
+            const selectedUser = allUsers.find(u => u.id == selectedUserId);
+            
+            if (selectedUser && selectedUser.manager_id) {
+                const managerSelect = document.getElementById('managerSelect');
+                if (managerSelect) {
+                    managerSelect.value = selectedUser.manager_id;
+                }
+            }
+        });
+    }
+}
+
+// Add approver to the list
+function addApprover() {
+    const approverSelect = document.getElementById('approverSelect');
+    const selectedUserId = approverSelect.value;
+    
+    if (!selectedUserId) {
+        alert('Please select an approver to add');
+        return;
+    }
+    
+    // Check if already added
+    if (selectedApprovers.find(a => a.id == selectedUserId)) {
+        alert('This approver is already added');
+        return;
+    }
+    
+    const selectedUser = allUsers.find(u => u.id == selectedUserId);
+    if (!selectedUser) {
+        alert('Selected user not found');
+        return;
+    }
+    
+    // Add to selected approvers
+    selectedApprovers.push({
+        id: selectedUser.id,
+        name: selectedUser.name,
+        role: selectedUser.role,
+        sequence: approverSequence++
+    });
+    
+    // Update UI
+    updateApproversList();
+    
+    // Reset dropdown
+    approverSelect.value = '';
+}
+
+// Update approvers list display
+function updateApproversList() {
+    const approversList = document.getElementById('approversList');
+    
+    if (selectedApprovers.length === 0) {
+        approversList.innerHTML = `
+            <div class="text-muted text-center py-3">
+                <i class="fa fa-users fa-3x mb-2"></i>
+                <p>No approvers added yet. Add approvers from the dropdown above.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    approversList.innerHTML = selectedApprovers.map(approver => `
+        <div class="approver-item">
+            <span class="approver-sequence">${approver.sequence}</span>
+            <strong>${approver.name}</strong>
+            <span class="ml-2 badge badge-light">${approver.role}</span>
+            <button type="button" class="remove-approver" onclick="removeApprover(${approver.id})" title="Remove approver">
+                <i class="fa fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+// Remove approver from list
+function removeApprover(userId) {
+    selectedApprovers = selectedApprovers.filter(a => a.id != userId);
+    
+    // Resequence
+    selectedApprovers.forEach((approver, index) => {
+        approver.sequence = index + 1;
+    });
+    
+    approverSequence = selectedApprovers.length + 1;
+    updateApproversList();
+}
+
+// Create approval rule
+function createApprovalRule() {
+    console.log('➕ Creating approval rule...');
+    
+    const form = document.getElementById('approvalRuleForm');
+    const formData = new FormData(form);
+    
+    // Validate required fields
+    if (!formData.get('user_id') || !formData.get('description')) {
+        alert('❌ Please fill in all required fields');
+        return;
+    }
+    
+    if (selectedApprovers.length === 0) {
+        alert('❌ Please add at least one approver');
+        return;
+    }
+    
+    const ruleData = {
+        user_id: formData.get('user_id'),
+        manager_id: formData.get('manager_id') || null,
+        description: formData.get('description'),
+        is_manager_first: formData.get('is_manager_first') === 'on',
+        is_sequential: formData.get('is_sequential') === 'on',
+        min_approval_percentage: parseFloat(formData.get('min_approval_percentage')) || 100,
+        approvers: selectedApprovers
+    };
+    
+    console.log('📤 Sending approval rule data:', ruleData);
+    
+    fetch('/api/admin/approval-rules', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(ruleData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('📊 Create approval rule response:', data);
+        if (data.success) {
+            alert('✅ Approval rule created successfully!');
+            
+            // Reset form
+            form.reset();
+            selectedApprovers = [];
+            approverSequence = 1;
+            updateApproversList();
+            
+            // Reload approval rules
+            loadApprovalRules();
+        } else {
+            alert('❌ Error creating approval rule: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error creating approval rule:', error);
+        alert('❌ Failed to create approval rule: ' + error.message);
+    });
+}
+
+// Load existing approval rules
+function loadApprovalRules() {
+    console.log('📥 Loading approval rules...');
+    
+    const tbody = document.getElementById('approvalRulesTableBody');
+    
+    // Show loading state
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading approval rules...</p>
+            </td>
+        </tr>
+    `;
+    
+    fetch('/api/admin/approval-rules')
+        .then(response => response.json())
+        .then(data => {
+            console.log('📊 Approval rules data:', data);
+            if (data.success) {
+                displayApprovalRules(data.rules);
+            } else {
+                throw new Error(data.error || 'Unknown error');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error loading approval rules:', error);
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-4">
+                        <div class="alert alert-danger">
+                            <h5>❌ Error Loading Approval Rules</h5>
+                            <p>${error.message}</p>
+                            <button class="btn btn-primary" onclick="loadApprovalRules()">🔄 Retry</button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+}
+
+// Display approval rules in table
+function displayApprovalRules(rules) {
+    console.log('🖥️ Displaying approval rules:', rules);
+    const tbody = document.getElementById('approvalRulesTableBody');
+    
+    if (rules.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-4">
+                    <i class="fa fa-sitemap fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No approval rules configured yet. Create your first rule above.</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = rules.map(rule => `
+        <tr>
+            <td>
+                <strong>${getUserName(rule.user_id) || 'Unknown User'}</strong>
+            </td>
+            <td>${rule.description}</td>
+            <td>
+                <span class="badge badge-${rule.is_manager_first ? 'success' : 'secondary'}">
+                    ${rule.is_manager_first ? 'Yes' : 'No'}
+                </span>
+            </td>
+            <td>
+                <span class="badge badge-${rule.is_sequential ? 'info' : 'secondary'}">
+                    ${rule.is_sequential ? 'Sequential' : 'Parallel'}
+                </span>
+            </td>
+            <td>
+                <strong>${rule.min_approval_percentage}%</strong>
+            </td>
+            <td>
+                <div class="approvers-display">
+                    ${rule.approvers.map(approver => `
+                        <span class="badge badge-primary mr-1 mb-1">
+                            ${approver.sequence}. ${approver.name}
+                        </span>
+                    `).join('')}
+                </div>
+            </td>
+            <td>
+                <button class="btn btn-warning btn-sm mr-1" onclick="editApprovalRule(${rule.id})" title="Edit Rule">
+                    <i class="fa fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-danger btn-sm" onclick="deleteApprovalRule(${rule.id})" title="Delete Rule">
+                    <i class="fa fa-trash"></i> Delete
+                </button>
+            </td>
+        </tr>
+    `).join('');
+    
+    console.log('✅ Approval rules displayed successfully');
+}
+
+// Helper function to get user name by ID
+function getUserName(userId) {
+    const user = allUsers.find(u => u.id == userId);
+    return user ? user.name : null;
+}
+
+// Edit approval rule
+function editApprovalRule(ruleId) {
+    // For now, just show an alert
+    alert('Edit functionality will be implemented in the next update');
+}
+
+// Delete approval rule
+function deleteApprovalRule(ruleId) {
+    if (!confirm('Are you sure you want to delete this approval rule? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch(`/api/admin/approval-rules/${ruleId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Approval rule deleted successfully!');
+            loadApprovalRules();
+        } else {
+            alert('❌ Error deleting approval rule: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error deleting approval rule:', error);
+        alert('❌ Failed to delete approval rule: ' + error.message);
+    });
+}
+
+console.log('🎯 Approval Rules script loaded completely');
+</script>
+
+{% endblock %}

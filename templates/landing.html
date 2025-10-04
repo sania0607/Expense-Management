@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}ExpenseFlow{% endblock %}
+
+{% block content %}
+
+<header class="header-area header-sticky wow slideInDown" data-wow-duration="0.75s" data-wow-delay="0s">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <nav class="main-nav">
+                    <!-- ***** Logo Start ***** -->
+                    <a href="{{ url_for('landing') }}" class="logo" style="display: flex; align-items: center;">
+                        <span style="font-size: 32px; font-weight: 700; color: #667eea;">💰 ExpenseFlow</span>
+                    </a>
+                    <!-- ***** Logo End ***** -->
+                    <!-- ***** Menu Start ***** -->
+                    <ul class="nav">
+                        <li class="scroll-to-section"><a href="#top" class="active">Home</a></li>
+                        <li class="scroll-to-section"><a href="#services">Solutions</a></li>
+                        <li class="scroll-to-section"><a href="#about">Why ExpenseFlow</a></li>
+                        <li class="scroll-to-section"><a href="#contact">Get Started</a></li>
+                        <li><div class="gradient-button"><a id="modal_trigger" href="#modal"><i class="fa fa-user"></i> Login</a></div></li> 
+                    </ul>        
+                    <a class='menu-trigger'>
+                        <span>Menu</span>
+                    </a>
+                    <!-- ***** Menu End ***** -->
+                </nav>
+            </div>
+        </div>
+    </div>
+</header>
+<!-- ***** Header Area End ***** -->
+
+<!-- ***** Login Modal Start ***** -->
+<div id="modal" class="popupContainer" style="display:none;">
+    <div class="popupHeader">
+        <span class="header_title">Login</span>
+        <span class="modal_close"><i class="fa fa-times"></i></span>
+    </div>
+    <section class="popupBody">
+        <!-- Login Form -->
+        <div class="user_login">
+            <form action="{{ url_for('login') }}" method="POST">
+                <label>Email</label>
+                <input type="email" name="email" required>
+                <br>
+                <label>Password</label>
+                <input type="password" name="password" required>
+                <br>
+                <div class="action_btns">
+                    <div class="one_half"><a href="#" class="btn back_btn"><i class="fa fa-angle-double-left"></i> Back</a></div>
+                    <div class="one_half last"><button type="submit" class="btn btn_red">Login</button></div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Register Form -->
+        <div class="user_register" style="display:none;">
+            <form action="{{ url_for('register') }}" method="POST">
+                <label>Email Address</label>
+                <input type="email" name="email" required>
+                <br>
+                <label>Password</label>
+                <input type="password" name="password" required>
+                <br>
+                <label>Company</label>
+                <select name="company_id" required>
+                    <option value="1">Sample Corp</option>
+                </select>
+                <br>
+                <div class="action_btns">
+                    <div class="one_half"><a href="#" class="btn back_btn"><i class="fa fa-angle-double-left"></i> Back</a></div>
+                    <div class="one_half last"><button type="submit" class="btn btn_red">Register</button></div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Demo Credentials -->
+        <div class="demo_credentials">
+            <hr>
+            <p><strong>Demo Credentials:</strong></p>
+            <p>Admin: <code>admin@company.com</code> | Password: <code>admin123</code></p>
+            <p>Manager: <code>manager@company.com</code> | Password: <code>manager123</code></p>
+            <p>Employee: <code>employee@company.com</code> | Password: <code>employee123</code></p>
+            <p><a href="#" class="switch_register">Don't have an account? Register here</a></p>
+        </div>
+    </section>
+</div>
+<!-- ***** Login Modal End ***** -->
+
+<!-- ***** Main Banner Area Start ***** -->
+<div class="main-banner wow fadeIn" id="top" data-wow-duration="1s" data-wow-delay="0.5s">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <div class="row">
+                    <div class="col-lg-6 align-self-center">
+                        <div class="left-content show-up header-text wow fadeInLeft" data-wow-duration="1s" data-wow-delay="1s">
+                            <div class="row">
+                                <div class="col-lg-12">
+                                    <h2>Smart Expense Management Made Simple</h2>
+                                    <p><p>
+ExpenseFlow streamlines your expense management with intelligent automation, multi-currency support, 
+and flexible approval workflows. From receipt capture to reimbursement, we make expense tracking 
+effortless for teams of any size.
+</p>
+</p>
+                                </div>
+                                <div class="col-lg-12">
+                                    <div class="white-button first-button scroll-to-section">
+                                        <a href="{{ url_for('register') }}">Start Managing Expenses!</a>
+                                    </div>
+                                    <div class="white-button scroll-to-section">
+                                        <a href="#services">Explore Features</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="right-image wow fadeInRight" data-wow-duration="1s" data-wow-delay="0.5s">
+                            <img src="{{ url_for('static', filename='images/slider-dec.png') }}" alt="">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ***** Main Banner Area End ***** -->
+
+<!-- ***** Services Area Start ***** -->
+<div id="services" class="services section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 offset-lg-2">
+                <div class="section-heading wow fadeInDown" data-wow-duration="1s" data-wow-delay="0.5s">
+                    <h4>Complete <em>Expense Management &amp; Financial</em> Control</h4>
+                    <img src="{{ url_for('static', filename='images/heading-line-dec.png') }}" alt="">
+                    <p>ExpenseFlow provides comprehensive expense management solutions with smart automation, global currency support, and transparent approval workflows for modern businesses.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-3">
+                <div class="service-item first-service">
+                    <div class="icon"></div>
+                    <h4>Smart User Management</h4>
+                    <p>Auto-create company in local currency, assign roles, and manage teams with ease. Streamlined onboarding and role-based access control.</p>
+                    <div class="text-button">
+                        <a href="#">Read More <i class="fa fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="service-item second-service">
+                    <div class="icon"></div>
+                    <h4>Effortless Expense Submission</h4>
+                    <p>Submit claims in any currency, upload receipts with OCR, and track approvals in real time. Mobile-first design for on-the-go expense reporting.</p>
+                    <div class="text-button">
+                        <a href="#">Read More <i class="fa fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="service-item third-service">
+                    <div class="icon"></div>
+                    <h4>Flexible Approval Workflows</h4>
+                    <p>Multi-level approvals with customizable rules: percentage-based, specific approver, or hybrid. Configure workflows that match your company policies.</p>
+                    <div class="text-button">
+                        <a href="#">Read More <i class="fa fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3">
+                <div class="service-item fourth-service">
+                    <div class="icon"></div>
+                    <h4>Global Currency & Transparency</h4>
+                    <p>Live currency conversion + clear dashboards for full expense visibility. Real-time exchange rates and comprehensive reporting.</p>
+                    <div class="text-button">
+                        <a href="#">Read More <i class="fa fa-arrow-right"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ***** Services Area End ***** -->
+
+<!-- ***** About Area Start ***** -->
+<div id="about" class="about-us section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6 align-self-center">
+                <div class="section-heading">
+                    <h4>About <em>ExpenseFlow</em> &amp; Our Mission</h4>
+                    <img src="{{ url_for('static', filename='images/heading-line-dec.png') }}" alt="">
+                    <p>We are a team passionate about simplifying financial management for businesses. ExpenseFlow transforms complex expense processes into streamlined workflows, helping companies save time and maintain financial transparency.</p>
+                </div>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="box-item">
+                            <h4><a href="#">Intelligent Automation</a></h4>
+                            <p>Smart OCR receipt processing and automated expense categorization to reduce manual work and errors.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="box-item">
+                            <h4><a href="#">Multi-Currency Support</a></h4>
+                            <p>Handle expenses in any currency with real-time conversion rates and automatic policy compliance checks.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="box-item">
+                            <h4><a href="#">Advanced Analytics</a></h4>
+                            <p>Comprehensive reporting and insights to track spending patterns, identify cost-saving opportunities, and ensure budget compliance.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="box-item">
+                            <h4><a href="#">Seamless Integration</a></h4>
+                            <p>Easy integration with existing accounting systems, HR platforms, and financial tools for complete workflow automation.</p>
+                        </div>
+                    </div>
+                    <div class="col-lg-12">
+                        <p>Ready to streamline your expense management? Join thousands of companies who trust ExpenseFlow for efficient financial operations.</p>
+                        <div class="gradient-button">
+                            <a href="{{ url_for('register') }}">Start Your Free Trial</a>
+                        </div>
+                        <span>*30-Day Free Trial Available</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="right-image">
+                    <img src="{{ url_for('static', filename='images/about-right-dec.png') }}" alt="">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ***** About Area End ***** -->
+
+<!-- ***** Contact Area Start ***** -->
+<div id="contact" class="contact-us section">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-6 offset-lg-3">
+                <div class="section-heading wow fadeIn" data-wow-duration="1s" data-wow-delay="0.5s">
+                    <h4>Contact ExpenseFlow <em>Team</em></h4>
+                    <img src="{{ url_for('static', filename='images/heading-line-dec.png') }}" alt="">
+                    <p>Ready to transform your expense management? Contact our team to learn more about ExpenseFlow's powerful features and pricing options.</p>
+                </div>
+            </div>
+            <div class="col-lg-12 wow fadeInUp" data-wow-duration="0.5s" data-wow-delay="0.25s">
+                <form id="contact" action="" method="post">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="contact-dec">
+                                <img src="{{ url_for('static', filename='images/contact-dec.png') }}" alt="">
+                            </div>
+                        </div>
+                        <div class="col-lg-5">
+                            <div id="map">
+                                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d56048.52670734663!2d77.3290!3d28.5355!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x390ce5a43173357b%3A0x37ffce30c87cc03f!2sGreater%20Noida%2C%20Uttar%20Pradesh!5e0!3m2!1sen!2sin!4v1696234567890!5m2!1sen!2sin" width="100%" height="636px" frameborder="0" style="border:0" allowfullscreen=""></iframe>
+                            </div>
+                        </div>
+                        <div class="col-lg-7">
+                            <div class="fill-form">
+                                <div class="row">
+                                    <div class="col-lg-4">
+                                        <div class="info-post">
+                                            <div class="icon">
+                                                <img src="{{ url_for('static', filename='images/phone-icon.png') }}" alt="">
+                                                <a href="#">+91-9876-543-210</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <div class="info-post">
+                                            <div class="icon">
+                                                <img src="{{ url_for('static', filename='images/email-icon.png') }}" alt="">
+                                                <a href="#">hello@expenseflow.com</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-4">
+                                        <div class="info-post">
+                                            <div class="icon">
+                                                <img src="{{ url_for('static', filename='images/location-icon.png') }}" alt="">
+                                                <a href="#">Business District, New Delhi 110001</a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <fieldset>
+                                            <input type="name" name="name" id="name" placeholder="Name" autocomplete="on" required>
+                                        </fieldset>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <fieldset>
+                                            <input type="surname" name="surname" id="surname" placeholder="Surname" autocomplete="on" required>
+                                        </fieldset>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <fieldset>
+                                            <input type="text" name="email" id="email" pattern="[^ @]*@[^ @]*" placeholder="Your Email" required="">
+                                        </fieldset>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <fieldset>
+                                            <input type="subject" name="subject" id="subject" placeholder="Subject" autocomplete="on">
+                                        </fieldset>
+                                    </div>
+                                    <div class="col-lg-12">
+                                        <fieldset>
+                                            <textarea name="message" type="text" class="form-control" id="message" placeholder="Message" required=""></textarea>
+                                        </fieldset>
+                                    </div>
+                                    <div class="col-lg-12">
+                                        <fieldset>
+                                            <button type="submit" id="form-submit" class="main-button">Send Message Now</button>
+                                        </fieldset>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ***** Contact Area End ***** -->
+
+<!-- ***** Footer Start ***** -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12">
+                <p>Copyright © 2025 ExpenseFlow Co., Ltd. All Rights Reserved.</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+// Modal functionality
+$(document).ready(function() {
+    // Switch between login and register forms
+    $('.switch_register').click(function(e) {
+        e.preventDefault();
+        $('.user_login').hide();
+        $('.user_register').show();
+    });
+    
+    $('.back_btn').click(function(e) {
+        e.preventDefault();
+        $('.user_register').hide();
+        $('.user_login').show();
+    });
+});
+</script>
+{% endblock %}
