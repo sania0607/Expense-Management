@@ -99,10 +99,15 @@
 
                     <!-- Search and Actions -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <h5><i class="fa fa-table"></i> User Management Table</h5>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                            <button class="btn btn-info btn-sm" onclick="testEmailConfig()">
+                                <i class="fa fa-envelope"></i> Test Email Config
+                            </button>
+                        </div>
+                        <div class="col-md-4">
                             <div class="input-group">
                                 <input type="text" class="form-control" id="searchInput" 
                                        placeholder="Search users..." onkeyup="filterUsers()">
@@ -388,7 +393,7 @@ function displayUsers(users) {
                         title="Edit User">
                     <i class="fa fa-edit"></i> Edit
                 </button>
-                <button class="btn btn-info btn-sm mr-1" onclick="sendPassword(${user.id})" 
+                <button class="btn btn-info btn-sm mr-1" onclick="sendPasswordReset(${user.id})" 
                         title="Send Password">
                     <i class="fa fa-paper-plane"></i> Send Password
                 </button>
@@ -601,7 +606,173 @@ function generatePassword() {
     return password;
 }
 
+// Send password reset email
+function sendPasswordReset(userId) {
+    console.log('📧 Sending password reset for user ID:', userId);
+    
+    // Find user details
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) {
+        alert('❌ User not found');
+        return;
+    }
+    
+    // Confirm action
+    const confirmed = confirm(`🔐 Send new password to ${user.name} (${user.email})?
+    
+This will:
+• Generate a new random password
+• Update the user's password in the system
+• Send the new password to their email address
+    
+Are you sure you want to continue?`);
+    
+    if (!confirmed) {
+        return;
+    }
+    
+    // Show loading state
+    const button = document.querySelector(`button[onclick="sendPasswordReset(${userId})"]`);
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    button.disabled = true;
+    
+    // Send request to API
+    fetch(`/api/admin/users/${userId}/send-password`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            let message = `✅ ${data.message}`;
+            
+            // If email failed but password was changed, show the password
+            if (data.password) {
+                message += `
+
+📋 New Password: ${data.password}
+
+⚠️ Please share this password securely with the user.`;
+            }
+            
+            alert(message);
+            
+            // Optional: Show a more detailed success notification
+            showNotification('success', `Password reset sent to ${user.email}`, 5000);
+            
+        } else {
+            alert(`❌ Error: ${data.error}`);
+            showNotification('error', data.error, 5000);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error sending password reset:', error);
+        alert(`❌ Failed to send password reset: ${error.message}`);
+        showNotification('error', 'Failed to send password reset', 5000);
+    })
+    .finally(() => {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Show notification (create if doesn't exist)
+function showNotification(type, message, duration = 3000) {
+    // Remove existing notifications
+    const existing = document.querySelectorAll('.notification-toast');
+    existing.forEach(n => n.remove());
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification-toast alert alert-${type === 'success' ? 'success' : 'danger'}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideInRight 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'}"></i>
+            <span>${message}</span>
+            <button type="button" class="close" onclick="this.parentElement.parentElement.remove()" style="margin-left: auto;">
+                <span>&times;</span>
+            </button>
+        </div>
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Auto remove after duration
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => notification.remove(), 300);
+        }
+    }, duration);
+}
+
+// Test email configuration
+function testEmailConfig() {
+    console.log('📧 Testing email configuration...');
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    button.disabled = true;
+    
+    fetch('/api/admin/test-email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`✅ Email Configuration Test: ${data.message}`);
+            showNotification('success', 'Email configuration is working!', 3000);
+        } else {
+            alert(`❌ Email Configuration Test Failed: ${data.message}`);
+            showNotification('error', 'Email configuration failed', 5000);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error testing email:', error);
+        alert(`❌ Email test failed: ${error.message}`);
+        showNotification('error', 'Email test failed', 5000);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
 console.log('🎯 Admin dashboard script loaded completely');
 </script>
+
+<style>
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideOutRight {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+}
+</style>
 
 {% endblock %}

@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, session
 from database import db
 from models import Company, User, ApprovalRule, RuleStep, ExpenseApproval, Expense
 from werkzeug.security import generate_password_hash
+from email_service import email_service
 import requests
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
@@ -552,3 +553,69 @@ def manage_approval_rule(rule_id):
         except Exception as e:
             db.session.rollback()
             return jsonify({'error': f'Failed to delete approval rule: {str(e)}'}), 500
+
+@api_bp.route('/admin/users/<int:user_id>/send-password', methods=['POST'])
+def send_password_reset(user_id):
+    """Generate new password and send it to user's email"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or current_user.role != 'Admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Get the user to reset password for
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    try:
+        # Generate new random password
+        new_password = email_service.generate_random_password()
+        
+        # Update user's password in database
+        user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        # Send email with new password
+        success, message = email_service.send_password_reset_email(
+            user.email, 
+            user.name, 
+            new_password
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': f'New password sent to {user.email}'
+            })
+        else:
+            # If email fails, we still keep the password change but inform admin
+            return jsonify({
+                'success': True,
+                'message': f'Password updated but email failed: {message}. New password: {new_password}',
+                'password': new_password  # Return password if email fails
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to reset password: {str(e)}'}), 500
+
+@api_bp.route('/admin/test-email', methods=['POST'])
+def test_email_configuration():
+    """Test email configuration"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    # Check if current user is admin
+    current_user = User.query.get(session['user_id'])
+    if not current_user or current_user.role != 'Admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    success, message = email_service.test_email_connection()
+    
+    return jsonify({
+        'success': success,
+        'message': message
+    })
